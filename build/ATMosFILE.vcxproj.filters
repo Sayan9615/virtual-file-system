@@ -31,6 +31,9 @@
     <ClCompile Include="C:\Users\Sayan\OneDrive\Documente\GitHub\virtual-file-system\Program_source\logger\TimestampedLogger.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="C:\Users\Sayan\OneDrive\Documente\GitHub\virtual-file-system\Program_source\main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="C:\Users\Sayan\OneDrive\Documente\GitHub\virtual-file-system\Program_source\permissions\GroupPermission.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
