@@ -10,7 +10,7 @@ class BPlusTree
 
     private:
         BPlusNode<K,V>* m_root;
-        int order; //ordin arbore
+        int m_order; //ordin arbore
 
  
         LeafNode<K,V>* findLeaf(const K& key)const;
@@ -66,7 +66,7 @@ std::optional<V> BPlusTree<K, V>::search(const K& key) const
 {
     if(!m_root) return std::nullopt;
 
-    LeafNode<K,V>* leaf=findleaf(key);
+    LeafNode<K,V>* leaf=findLeaf(key);
     for(int i =0 ;i<(int) leaf->m_keys.size();i++)
      {
         if(leaf->m_keys[i]==key)
@@ -97,7 +97,7 @@ inline void BPlusTree<K, V>::remove(const K &key)
     }
 
     LeafNode<K, V>* leaf = static_cast<LeafNode<K, V>*>(current);
-    removeFromLeaf(leaf, key, path)
+    removeFromLeaf(leaf, key, path);
 }
 
 template <typename K, typename V>
@@ -111,7 +111,7 @@ std::vector<V> BPlusTree<K, V>::rangeSearch(const K& k1, const K& k2) const
     {
         for(int i=0;i<(int)leaf->m_keys.size();i++)
         {
-            if(leaf->m_keysp[i]>=k1 && leaf->m_keys[i]<=k2)
+            if(leaf->m_keys[i]>=k1 && leaf->m_keys[i]<=k2)
             {
                 results.push_back(leaf->m_values[i]);
             }
@@ -121,7 +121,7 @@ std::vector<V> BPlusTree<K, V>::rangeSearch(const K& k1, const K& k2) const
             }
 
         }
-        leaf=leaf->next;
+        leaf=leaf->m_next;
     }
    return results; 
 
@@ -129,7 +129,7 @@ std::vector<V> BPlusTree<K, V>::rangeSearch(const K& k1, const K& k2) const
 
 
 template <typename K, typename V>
-BPlusTree<K, V>::BPlusTree(int order) :m_root(nullptr),m_order(order)
+BPlusTree<K, V>::BPlusTree(int order) : m_root(nullptr), m_order(order)
 {
     m_root=new LeafNode<K,V>();
 }
@@ -151,8 +151,8 @@ void BPlusTree<K, V>::splitLeaf(LeafNode<K, V>* leaf, InternalNode<K, V>* parent
     int mid = m_order; // mijlocul pentru split
 
     //mut 1/2 la drepta
-    newLeaf->m.keys.assign(leaf->m_keys.begin()+mid,leaf->m_keys.end());
-    newLeaf->m.values.assign(leaf->m_values.begin()+mid,leaf->m_values.end());
+    newLeaf->m_keys.assign(leaf->m_keys.begin()+mid,leaf->m_keys.end());
+    newLeaf->m_values.assign(leaf->m_values.begin()+mid,leaf->m_values.end());
 
     //pastrez 1/2 la stanga
     leaf->m_keys.resize(mid);
@@ -190,7 +190,7 @@ void BPlusTree<K, V>::insert(const K& key, const V& value)
 
     //gasesc pozitia 
     int i = 0;
-    while(i<(int)leaf->m_keys.size() && leaf->m_keys[i]==key)
+    while(i<(int)leaf->m_keys.size() && leaf->m_keys[i]<key)
     {
         i++;
     }
@@ -198,7 +198,7 @@ void BPlusTree<K, V>::insert(const K& key, const V& value)
     //daca exista key_update
     if(i<(int)leaf->m_keys.size() && leaf->m_keys[i]==key)
     {
-        leaf->m_values[i] =values; //update
+        leaf->m_values[i] =value; //update
         return;
     }
 
@@ -345,7 +345,7 @@ inline void BPlusTree<K, V>::removeFromLeaf(LeafNode<K, V> *leaf, const K &key, 
     
     if (i == (int)leaf->m_keys.size())
     {
-        cout << "Cheia nu exista in arbore!" << endl;
+        cout << "Key not found!" << endl;
         return;
     }
     leaf->removeAt(i);
@@ -360,10 +360,12 @@ inline void BPlusTree<K, V>::removeFromLeaf(LeafNode<K, V> *leaf, const K &key, 
     int childIdx = findChildIndex(parent, leaf);
 
     // cazul 2a — redistribute de la fratele din dreapta
-    if (childIdx < (int)parent->m_children.size() - 1) {
+    if (childIdx < (int)parent->m_children.size() - 1) 
+    {
         LeafNode<K, V>* rightSibling = static_cast<LeafNode<K, V>*>(parent->m_children[childIdx + 1]);
 
-        if ((int)rightSibling->m_keys.size() > m_order) {
+        if ((int)rightSibling->m_keys.size() > m_order) 
+        {
             // împrumutăm prima cheie din fratele drept
             leaf->insertAt((int)leaf->m_keys.size(),
                            rightSibling->m_keys[0],
@@ -377,7 +379,8 @@ inline void BPlusTree<K, V>::removeFromLeaf(LeafNode<K, V> *leaf, const K &key, 
     }
 
     // cazul 2b — redistribute de la fratele din stânga
-    if (childIdx > 0) {
+    if (childIdx > 0) 
+    {
         LeafNode<K, V>* leftSibling = static_cast<LeafNode<K, V>*>(parent->m_children[childIdx - 1]);
 
         if ((int)leftSibling->m_keys.size() > m_order) 
@@ -411,7 +414,7 @@ inline void BPlusTree<K, V>::removeFromLeaf(LeafNode<K, V> *leaf, const K &key, 
         // sterg cheia și copilul din parinte
         parent->m_keys.erase(parent->m_keys.begin() + childIdx);
         parent->m_children.erase(parent->m_children.begin() + childIdx + 1);
-        rightSibling->m_children.clear(); // ca să nu fac delete recursiv
+        rightSibling->m_next = nullptr; // ca să nu fac delete recursiv
         delete rightSibling;
 
         // verific dacă parintele a intrat în underflow
@@ -550,13 +553,16 @@ void BPlusTree<K, V>::display() const
         return;
     }
 
-    //parcurg BFS
-    std::vector <BPlusNode<K,V>*> current_level;
+    std::vector<BPlusNode<K,V>*> current_level;
     std::vector<BPlusNode<K,V>*> next_level;
 
+    current_level.push_back(m_root); 
+
+    int level = 0;
     while(!current_level.empty())
     {
-        for(auto node:curent_level)
+        std::cout << "Nivel " << level++ << ": ";
+        for(auto* node : current_level) 
         {
             node->display();
             std::cout<<" | ";
@@ -564,12 +570,10 @@ void BPlusTree<K, V>::display() const
             if(!node->isLeaf())
              {
                 InternalNode<K,V>* internal=static_cast<InternalNode<K,V>*>(node);
-                for(auto child:internal->m_children)
+                for(auto* child : internal->m_children)
                 {
                     next_level.push_back(child);
                 }
-
-
              }
         }
         std::cout<<"\n";
