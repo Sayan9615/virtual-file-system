@@ -5,16 +5,10 @@ template<typename K, typename V>
 class InternalNode: public BPlusNode<K,V> 
 {
     public:
-        std::vector <BPlusNode<K,V>>m_children;
+        std::vector <BPlusNode<K,V>*>m_children;
 
         InternalNode() :BPlusNode<K,V>(false){}
-        ~InternalNode()
-        {
-            for(auto it :m_children)
-            {
-                delete it;
-            }
-        }
+        ~InternalNode() = default;
 
         void display() const override 
         {
@@ -26,16 +20,16 @@ class InternalNode: public BPlusNode<K,V>
         }
 
         
-        void insertAt(int idx,const K& key,const V& value)
+       void insertAt(int idx, const K& key, BPlusNode<K,V>* child)
         {
-            this->m_keys.insert(this->m_keys.begin()+idx,key);
-            this->m_values.insert(this->m_values.begin()+idx,value);
+            this->m_keys.insert(this->m_keys.begin() + idx, key);
+            this->m_children.insert(this->m_children.begin() + idx + 1, child);
         }
 
         void removeAt(int idx)
         {
              this->m_keys.erase(this->m_keys.begin()+idx);
-            this->m_values.erase(this->m_values.begin()+idx);
+            this->m_children.erase(this->m_children.begin()+idx+1);
         }
 
 

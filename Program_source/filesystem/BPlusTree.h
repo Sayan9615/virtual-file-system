@@ -53,7 +53,9 @@ LeafNode<K, V>* BPlusTree<K,V>::findLeaf(const K& key) const
         {
             i++;
         }
-
+        
+        if (i >= (int)node->m_children.size())
+             i = node->m_children.size() - 1;
         current =node->m_children[i];
     }
 
@@ -253,27 +255,16 @@ void BPlusTree<K, V>::insertInParent(BPlusNode<K, V>* left, const K& key,  BPlus
     //caut parintele
     if(m_root->isLeaf()) return; //nu am parinte
 
-    InternalNode<K,V>* parent =nullptr;
     BPlusNode<K,V>* current=m_root;
 
     //stack pentru a gasi parintele
-    std::vector <InternalNode<K,V>*> path;
 
-    while(!current->isLeaf())
-    {
+    std::vector<InternalNode<K,V>*> path;
+    InternalNode<K,V>* parent = findParent(left, path);
 
-        InternalNode<K,V>* node =static_cast<InternalNode<K,V>*>(current);
-        path.push_back(node);
+    if (!parent) return;
 
-        int i =0;
-        while(i<(int)node->m_keys.size() && key >= node->m_keys[i])
-        {
-            i++;
-        }
-        current =node->m_children[i];
-    }
 
-    parent=path.back();
 
     //gasesc pozitia pentru noul key
     int idx=0;
@@ -309,6 +300,9 @@ template <typename K, typename V>
 inline InternalNode<K, V> *BPlusTree<K, V>::findParent(BPlusNode<K, V> *target, std::vector<InternalNode<K, V> *> &path)
 {
     //parinte + path
+
+    if (target->m_keys.empty()) return nullptr;
+
     if (m_root == target) return nullptr;
 
     BPlusNode<K, V>* current = m_root;
@@ -317,7 +311,8 @@ inline InternalNode<K, V> *BPlusTree<K, V>::findParent(BPlusNode<K, V> *target, 
     while (!current->isLeaf()) 
     {
         InternalNode<K, V>* node = static_cast<InternalNode<K, V>*>(current);
-        for (auto child : node->m_children) {
+        for (auto child : node->m_children) 
+        {
             if (child == target) 
             {
                 path.push_back(node);
@@ -327,8 +322,8 @@ inline InternalNode<K, V> *BPlusTree<K, V>::findParent(BPlusNode<K, V> *target, 
         path.push_back(node);
         // cobor spre target
         int i = 0;
-        while (i < (int)node->m_keys.size() &&
-               target->m_keys[0] >= node->m_keys[i]) {
+        while (i < (int)node->m_keys.size() &&target->m_keys[0] >= node->m_keys[i]) 
+        {
             i++;
         }
         current = node->m_children[i];
@@ -425,8 +420,7 @@ inline void BPlusTree<K, V>::removeFromLeaf(LeafNode<K, V> *leaf, const K &key, 
     // cazul 2c — merge cu fratele din stanga
     if (childIdx > 0) 
     {
-        LeafNode<K, V>* leftSibling = static_cast<LeafNode<K, V>*>(
-            parent->m_children[childIdx - 1]);
+        LeafNode<K, V>* leftSibling = static_cast<LeafNode<K, V>*>(parent->m_children[childIdx - 1]);
 
         // mut tot din leaf în fratele stang
         for (int j = 0; j < (int)leaf->m_keys.size(); j++) 
