@@ -20,4 +20,15 @@ class Database : public iSerializable, public iExportable
     bool execute(const std::string& sql);
 
     sqlite3* getConnection() const;
+
+    
+    
+    std::string serialize() const override {};
+
+    void deserialize(const std:: string &data) override {};
+
+    void exportTo(const std::string& path) const override {};
+
+    std::string getFormat() const override {};
+    
 };
