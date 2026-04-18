@@ -1,5 +1,6 @@
 #include <iostream>
 #include "filesystem/BPlusTree.h"
+#include "Database.h"
 using namespace std;
 
 int main() {
@@ -155,6 +156,33 @@ int main() {
     cout << "\n==============================" << endl;
     cout << "           DONE               " << endl;
     cout << "==============================" << endl;
+
+    //TESTARE DATABASE START
+    Database database;
+
+    if (!database.open("data/filesystem_app.db")) {
+        std::cout << "Nu s-a putut deschide baza de date.\n";
+        return 1;
+    }
+
+    std::string createUsersTable = R"(
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL UNIQUE,
+            password_hash TEXT NOT NULL,
+            role TEXT NOT NULL
+        );
+    )";
+
+    if (!database.execute(createUsersTable)) {
+        std::cout << "Nu s-a putut crea tabela users.\n";
+        return 1;
+    }
+
+    std::cout << "Baza de date si tabela users au fost create cu succes.\n";
+
+    database.close();
+    //TESTARE DATA BASE END
 
     return 0;
 }
