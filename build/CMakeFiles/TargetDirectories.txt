@@ -1,0 +1,3 @@
+C:/Users/Sayan/OneDrive/Documente/GitHub/virtual-file-system/build/CMakeFiles/ATMosFILE.dir
+C:/Users/Sayan/OneDrive/Documente/GitHub/virtual-file-system/build/CMakeFiles/ALL_BUILD.dir
+C:/Users/Sayan/OneDrive/Documente/GitHub/virtual-file-system/build/CMakeFiles/ZERO_CHECK.dir
