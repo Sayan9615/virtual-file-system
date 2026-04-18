@@ -23,12 +23,12 @@ class Database : public iSerializable, public iExportable
 
     
     
-    std::string serialize() const override {};
+    std::string serialize() const override { return NULL;};
 
     void deserialize(const std:: string &data) override {};
 
     void exportTo(const std::string& path) const override {};
 
-    std::string getFormat() const override {};
-    
+    std::string getFormat() const override { return NULL;};
+
 };
