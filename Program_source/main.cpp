@@ -158,9 +158,12 @@ int main() {
     cout << "==============================" << endl;
 
     //TESTARE DATABASE START
+    cout << "\n==============================" << endl;
+    cout << "         START DB TEST         " << endl;
+    cout << "==============================" << endl;
     Database database;
 
-    if (!database.open("data/filesystem_app.db")) {
+    if (!database.open("../Program_source/data/filesystem_app.db")) {
         std::cout << "Nu s-a putut deschide baza de date.\n";
         return 1;
     }
@@ -182,6 +185,11 @@ int main() {
     std::cout << "Baza de date si tabela users au fost create cu succes.\n";
 
     database.close();
+
+    cout << "\n==============================" << endl;
+    cout << "         END DB TEST         " << endl;
+    cout << "==============================" << endl;
+
     //TESTARE DATA BASE END
 
     return 0;

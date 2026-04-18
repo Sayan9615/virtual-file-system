@@ -1,118 +1,121 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="18.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="C:\Users\Sayan\OneDrive\Documente\GitHub\virtual-file-system\Program_source\exceptions\AccessDeniedException.cpp">
+    <ClCompile Include="C:\Users\marius\Documents\GitHub\virtual-file-system\Program_source\exceptions\AccessDeniedException.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\Sayan\OneDrive\Documente\GitHub\virtual-file-system\Program_source\exceptions\AppException.cpp">
+    <ClCompile Include="C:\Users\marius\Documents\GitHub\virtual-file-system\Program_source\exceptions\AppException.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\Sayan\OneDrive\Documente\GitHub\virtual-file-system\Program_source\exceptions\AuthException.cpp">
+    <ClCompile Include="C:\Users\marius\Documents\GitHub\virtual-file-system\Program_source\exceptions\AuthException.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\Sayan\OneDrive\Documente\GitHub\virtual-file-system\Program_source\exceptions\FileNotFoundException.cpp">
+    <ClCompile Include="C:\Users\marius\Documents\GitHub\virtual-file-system\Program_source\exceptions\FileNotFoundException.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\Sayan\OneDrive\Documente\GitHub\virtual-file-system\Program_source\exceptions\FileSystemException.cpp">
+    <ClCompile Include="C:\Users\marius\Documents\GitHub\virtual-file-system\Program_source\exceptions\FileSystemException.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\Sayan\OneDrive\Documente\GitHub\virtual-file-system\Program_source\exceptions\PermissionException.cpp">
+    <ClCompile Include="C:\Users\marius\Documents\GitHub\virtual-file-system\Program_source\exceptions\PermissionException.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\Sayan\OneDrive\Documente\GitHub\virtual-file-system\Program_source\filesystem\BinaryFile.cpp">
+    <ClCompile Include="C:\Users\marius\Documents\GitHub\virtual-file-system\Program_source\filesystem\BinaryFile.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\Sayan\OneDrive\Documente\GitHub\virtual-file-system\Program_source\filesystem\File.cpp">
+    <ClCompile Include="C:\Users\marius\Documents\GitHub\virtual-file-system\Program_source\filesystem\File.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\Sayan\OneDrive\Documente\GitHub\virtual-file-system\Program_source\filesystem\FileSystemEntity.cpp">
+    <ClCompile Include="C:\Users\marius\Documents\GitHub\virtual-file-system\Program_source\filesystem\FileSystemEntity.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\Sayan\OneDrive\Documente\GitHub\virtual-file-system\Program_source\filesystem\Folder.cpp">
+    <ClCompile Include="C:\Users\marius\Documents\GitHub\virtual-file-system\Program_source\filesystem\Folder.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\Sayan\OneDrive\Documente\GitHub\virtual-file-system\Program_source\filesystem\SharedFolder.cpp">
+    <ClCompile Include="C:\Users\marius\Documents\GitHub\virtual-file-system\Program_source\filesystem\SharedFolder.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\Sayan\OneDrive\Documente\GitHub\virtual-file-system\Program_source\filesystem\TextFile.cpp">
+    <ClCompile Include="C:\Users\marius\Documents\GitHub\virtual-file-system\Program_source\filesystem\TextFile.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\Sayan\OneDrive\Documente\GitHub\virtual-file-system\Program_source\logger\ConsoleLogger.cpp">
+    <ClCompile Include="C:\Users\marius\Documents\GitHub\virtual-file-system\Program_source\logger\ConsoleLogger.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\Sayan\OneDrive\Documente\GitHub\virtual-file-system\Program_source\logger\FileLogger.cpp">
+    <ClCompile Include="C:\Users\marius\Documents\GitHub\virtual-file-system\Program_source\logger\FileLogger.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\Sayan\OneDrive\Documente\GitHub\virtual-file-system\Program_source\logger\Logger.cpp">
+    <ClCompile Include="C:\Users\marius\Documents\GitHub\virtual-file-system\Program_source\logger\Logger.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\Sayan\OneDrive\Documente\GitHub\virtual-file-system\Program_source\logger\TimestampedLogger.cpp">
+    <ClCompile Include="C:\Users\marius\Documents\GitHub\virtual-file-system\Program_source\logger\TimestampedLogger.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\Sayan\OneDrive\Documente\GitHub\virtual-file-system\Program_source\main.cpp">
+    <ClCompile Include="C:\Users\marius\Documents\GitHub\virtual-file-system\Program_source\main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\Sayan\OneDrive\Documente\GitHub\virtual-file-system\Program_source\permissions\GroupPermission.cpp">
+    <ClCompile Include="C:\Users\marius\Documents\GitHub\virtual-file-system\Program_source\permissions\GroupPermission.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\Sayan\OneDrive\Documente\GitHub\virtual-file-system\Program_source\permissions\OthersPermission.cpp">
+    <ClCompile Include="C:\Users\marius\Documents\GitHub\virtual-file-system\Program_source\permissions\OthersPermission.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\Sayan\OneDrive\Documente\GitHub\virtual-file-system\Program_source\permissions\OwnerPermission.cpp">
+    <ClCompile Include="C:\Users\marius\Documents\GitHub\virtual-file-system\Program_source\permissions\OwnerPermission.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\Sayan\OneDrive\Documente\GitHub\virtual-file-system\Program_source\permissions\Permission.cpp">
+    <ClCompile Include="C:\Users\marius\Documents\GitHub\virtual-file-system\Program_source\permissions\Permission.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\Sayan\OneDrive\Documente\GitHub\virtual-file-system\Program_source\services\AuthService.cpp">
+    <ClCompile Include="C:\Users\marius\Documents\GitHub\virtual-file-system\Program_source\services\AuthService.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\Sayan\OneDrive\Documente\GitHub\virtual-file-system\Program_source\services\Database.cpp">
+    <ClCompile Include="C:\Users\marius\Documents\GitHub\virtual-file-system\Program_source\services\Database.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\Sayan\OneDrive\Documente\GitHub\virtual-file-system\Program_source\services\EventLog.cpp">
+    <ClCompile Include="C:\Users\marius\Documents\GitHub\virtual-file-system\Program_source\services\EventLog.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\Sayan\OneDrive\Documente\GitHub\virtual-file-system\Program_source\services\FileManager.cpp">
+    <ClCompile Include="C:\Users\marius\Documents\GitHub\virtual-file-system\Program_source\services\FileManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\Sayan\OneDrive\Documente\GitHub\virtual-file-system\Program_source\services\PathResolver.cpp">
+    <ClCompile Include="C:\Users\marius\Documents\GitHub\virtual-file-system\Program_source\services\PathResolver.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\Sayan\OneDrive\Documente\GitHub\virtual-file-system\Program_source\services\PermissionManager.cpp">
+    <ClCompile Include="C:\Users\marius\Documents\GitHub\virtual-file-system\Program_source\services\PermissionManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\Sayan\OneDrive\Documente\GitHub\virtual-file-system\Program_source\services\SearchEngine.cpp">
+    <ClCompile Include="C:\Users\marius\Documents\GitHub\virtual-file-system\Program_source\services\SearchEngine.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\Sayan\OneDrive\Documente\GitHub\virtual-file-system\Program_source\services\Session.cpp">
+    <ClCompile Include="C:\Users\marius\Documents\GitHub\virtual-file-system\Program_source\services\Session.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\Sayan\OneDrive\Documente\GitHub\virtual-file-system\Program_source\services\ShareService.cpp">
+    <ClCompile Include="C:\Users\marius\Documents\GitHub\virtual-file-system\Program_source\services\ShareService.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\Sayan\OneDrive\Documente\GitHub\virtual-file-system\Program_source\services\SortManager.cpp">
+    <ClCompile Include="C:\Users\marius\Documents\GitHub\virtual-file-system\Program_source\services\SortManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\Sayan\OneDrive\Documente\GitHub\virtual-file-system\Program_source\users\AdminUser.cpp">
+    <ClCompile Include="C:\Users\marius\Documents\GitHub\virtual-file-system\Program_source\users\AdminUser.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\Sayan\OneDrive\Documente\GitHub\virtual-file-system\Program_source\users\BaseUser.cpp">
+    <ClCompile Include="C:\Users\marius\Documents\GitHub\virtual-file-system\Program_source\users\BaseUser.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\Sayan\OneDrive\Documente\GitHub\virtual-file-system\Program_source\users\Group.cpp">
+    <ClCompile Include="C:\Users\marius\Documents\GitHub\virtual-file-system\Program_source\users\Group.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\Sayan\OneDrive\Documente\GitHub\virtual-file-system\Program_source\users\User.cpp">
+    <ClCompile Include="C:\Users\marius\Documents\GitHub\virtual-file-system\Program_source\users\User.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\marius\Documents\GitHub\virtual-file-system\Program_source\external\sqlite3.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="C:\Users\Sayan\OneDrive\Documente\GitHub\virtual-file-system\CMakeLists.txt" />
+    <CustomBuild Include="C:\Users\marius\Documents\GitHub\virtual-file-system\CMakeLists.txt" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Source Files">
-      <UniqueIdentifier>{8C301E07-DCFF-3701-9790-6E88804F6998}</UniqueIdentifier>
+      <UniqueIdentifier>{C3F7F3E1-A04C-3130-8EDF-3C8EB8162C0F}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>
