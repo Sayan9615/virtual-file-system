@@ -7,9 +7,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 
 file(GLOB_RECURSE SOURCES "Program_source/*.cpp")
+set(SQLITE_SOURCE "Program_source/external/sqlite3.c")
 
 
-add_executable(ATMosFILE ${SOURCES})
+add_executable(ATMosFILE ${SOURCES} ${SQLITE_SOURCE})
 
 
 set_target_properties(ATMosFILE PROPERTIES
@@ -19,7 +20,8 @@ set_target_properties(ATMosFILE PROPERTIES
 )
 
 
-target_include_directories(ATMosFILE PRIVATE 
+target_include_directories(ATMosFILE PRIVATE
+    Program_source/external
     Program_source/interfaces
     Program_source/filesystem
     Program_source/users
