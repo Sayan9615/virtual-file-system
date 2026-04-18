@@ -160,4 +160,5 @@ bool BinaryFile::operator==(const BinaryFile &other) const
 std::ostream &operator<<(std::ostream &os, const BinaryFile &file)
 {
    os << file.getIcon() << " " << file.m_name << file.m_extension<< " (" << file.m_size << " bytes)";
+   return os;
 }
