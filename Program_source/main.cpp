@@ -1,9 +1,15 @@
 #include <iostream>
 #include "filesystem/BPlusTree.h"
-#include "Database.h"
+#include "services/Database.h"
+#include "services/AuthService.h"
+#include <sodium.h>
 using namespace std;
 
 int main() {
+    if (sodium_init() < 0) {
+        std::cout << "Eroare la initializarea libsodium.\n";
+        return 1;
+    }
 
     BPlusTree<string, int> tree(3);
 
@@ -161,30 +167,86 @@ int main() {
     cout << "\n==============================" << endl;
     cout << "         START DB TEST         " << endl;
     cout << "==============================" << endl;
-    Database database;
+    Database db;
 
-    if (!database.open("../Program_source/data/filesystem_app.db")) {
+    if (!db.open("project.db")) {
         std::cout << "Nu s-a putut deschide baza de date.\n";
         return 1;
     }
 
-    std::string createUsersTable = R"(
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT NOT NULL UNIQUE,
-            password_hash TEXT NOT NULL,
-            role TEXT NOT NULL
-        );
-    )";
+    AuthService authService(db);
 
-    if (!database.execute(createUsersTable)) {
-        std::cout << "Nu s-a putut crea tabela users.\n";
+    if (!authService.initializeDatabase()) {
+        std::cout << "Nu s-a putut initializa tabela users.\n";
         return 1;
     }
 
-    std::cout << "Baza de date si tabela users au fost create cu succes.\n";
+    int option;
+    std::string username;
+    std::string password;
 
-    database.close();
+    do {
+        std::cout << "\n===== MENIU AUTENTIFICARE =====\n";
+        std::cout << "1. Register\n";
+        std::cout << "2. Login\n";
+        std::cout << "3. Logout\n";
+        std::cout << "4. User curent\n";
+        std::cout << "0. Exit\n";
+        std::cout << "Alege: ";
+        std::cin >> option;
+
+        switch (option) {
+            case 1:
+                std::cout << "Username: ";
+                std::cin >> username;
+                std::cout << "Password: ";
+                std::cin >> password;
+
+                if (authService.registerUser(username, password)) {
+                    std::cout << "Utilizator inregistrat cu succes.\n";
+                } else {
+                    std::cout << "Inregistrare esuata.\n";
+                }
+                break;
+
+            case 2:
+                std::cout << "Username: ";
+                std::cin >> username;
+                std::cout << "Password: ";
+                std::cin >> password;
+
+                if (authService.login(username, password)) {
+                    std::cout << "Login reusit.\n";
+                } else {
+                    std::cout << "Login esuat.\n";
+                }
+                break;
+
+            case 3:
+                authService.logout();
+                std::cout << "Logout efectuat.\n";
+                break;
+
+            case 4:
+                if (authService.isAuthenticated()) {
+                    User currentUser = authService.getCurrentUser();
+                    std::cout << "Utilizator logat: "
+                              << currentUser.getUsername()
+                              << " (id = " << currentUser.getId() << ")\n";
+                } else {
+                    std::cout << "Nu este nimeni autentificat.\n";
+                }
+                break;
+
+            case 0:
+                std::cout << "Program inchis.\n";
+                break;
+
+            default:
+                std::cout << "Optiune invalida.\n";
+        }
+
+    } while (option != 0);
 
     cout << "\n==============================" << endl;
     cout << "         END DB TEST         " << endl;

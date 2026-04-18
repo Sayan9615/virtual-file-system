@@ -1,9 +1,29 @@
 #pragma once
+#include <string>
+#include "Database.h"
+#include "User.h"
 
-// de inclus o functie de criptare care sa cripteza parola inainte de stocarea 
-// parolelor, si in baza de date se verifica de asemenea hash-ul parolei
+class AuthService {
+private:
+    Database& database;
+    User currentUser;
 
-class AuthService
-{
-    
+public:
+    AuthService(Database& database);
+
+    bool initializeDatabase();
+
+    bool registerUser(const std::string& username, const std::string& password);
+    bool login(const std::string& username, const std::string& password);
+    void logout();
+
+    bool isAuthenticated() const;
+    User getCurrentUser() const;
+
+private:
+    bool userExists(const std::string& username);
+    bool getUserByUsername(const std::string& username, User& user, std::string& passwordHash);
+
+    bool isValidUsername(const std::string& username);
+    bool isValidPassword(const std::string& password);
 };

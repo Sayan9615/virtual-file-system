@@ -4,5 +4,6 @@
 class User : public BaseUser
 {
     public:
-        User(std::string name,std::string passwordhash) : BaseUser(name,passwordhash){};
+        User() : BaseUser() {};
+        User(int id,std::string username) : BaseUser(id,username){};
 };

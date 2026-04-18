@@ -11,6 +11,12 @@ bool Database::open(const std::string& dbName) {
     if (sqlite3_open(dbName.c_str(), &db) != SQLITE_OK) {
         std::cerr << "Eroare la deschiderea bazei de date: "
                   << sqlite3_errmsg(db) << '\n';
+
+        if (db != nullptr) {
+            sqlite3_close(db);
+            db = nullptr;
+        }
+
         return false;
     }
 
@@ -25,8 +31,12 @@ void Database::close() {
 }
 
 bool Database::execute(const std::string& sql) {
-    char* errMsg = nullptr;
+    if (db == nullptr) {
+        std::cerr << "Baza de date nu este deschisa.\n";
+        return false;
+    }
 
+    char* errMsg = nullptr;
     int result = sqlite3_exec(db, sql.c_str(), nullptr, nullptr, &errMsg);
 
     if (result != SQLITE_OK) {
