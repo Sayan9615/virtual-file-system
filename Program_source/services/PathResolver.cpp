@@ -75,6 +75,7 @@ bool PathResolver::validatePath(const std::string &path) const
     try{
 
         resolvePath(path);
+        return true;
     }
     catch(...)
        { return false;}
@@ -126,6 +127,6 @@ std::string PathResolver::buildPath(const std::shared_ptr<FileSystemEntity> &ent
     auto* folder=dynamic_cast<Folder*>(entity.get());
     if(folder)
         return folder->getAbsolutePath();
-        
+
     return "/"+ entity->getName();       
 }
