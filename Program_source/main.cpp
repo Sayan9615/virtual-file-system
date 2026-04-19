@@ -5,6 +5,8 @@
 #include "filesystem/SharedFolder.h"
 #include "filesystem/TextFile.h"
 #include "filesystem/BinaryFile.h"
+#include "logger/TimestampedLogger.h"
+#include "logger/ConsoleLogger.h"
 
 using namespace std;
 
@@ -52,5 +54,12 @@ int main() {
    {
         std::cerr<<"\n[EROARE_FATALA]: "<<e.what()<<"\n";
    }
+
+    TimestampedLogger fileLog("app.log");
+    ConsoleLogger consoleLog;
+
+    fileLog.log("Aplicatie pornita");
+    consoleLog.log("Aplicatie pornita");
+
     return 0;
 }
