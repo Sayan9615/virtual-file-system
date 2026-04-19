@@ -11,6 +11,9 @@ C:\Users\paras\Documents\GitHub\virtual-file-system\Program_source\filesystem\Fi
 C:\Users\paras\Documents\GitHub\virtual-file-system\Program_source\filesystem\Folder.cpp;C:\Users\paras\Documents\GitHub\virtual-file-system\build\ATMosFILE.dir\Release\Folder.obj
 C:\Users\paras\Documents\GitHub\virtual-file-system\Program_source\filesystem\SharedFolder.cpp;C:\Users\paras\Documents\GitHub\virtual-file-system\build\ATMosFILE.dir\Release\SharedFolder.obj
 C:\Users\paras\Documents\GitHub\virtual-file-system\Program_source\filesystem\TextFile.cpp;C:\Users\paras\Documents\GitHub\virtual-file-system\build\ATMosFILE.dir\Release\TextFile.obj
+C:\Users\paras\Documents\GitHub\virtual-file-system\Program_source\gui\FileSystemModel.cpp;C:\Users\paras\Documents\GitHub\virtual-file-system\build\ATMosFILE.dir\Release\FileSystemModel.obj
+C:\Users\paras\Documents\GitHub\virtual-file-system\Program_source\gui\LoginDialog.cpp;C:\Users\paras\Documents\GitHub\virtual-file-system\build\ATMosFILE.dir\Release\LoginDialog.obj
+C:\Users\paras\Documents\GitHub\virtual-file-system\Program_source\gui\MainWindow.cpp;C:\Users\paras\Documents\GitHub\virtual-file-system\build\ATMosFILE.dir\Release\MainWindow.obj
 C:\Users\paras\Documents\GitHub\virtual-file-system\Program_source\logger\ConsoleLogger.cpp;C:\Users\paras\Documents\GitHub\virtual-file-system\build\ATMosFILE.dir\Release\ConsoleLogger.obj
 C:\Users\paras\Documents\GitHub\virtual-file-system\Program_source\logger\FileLogger.cpp;C:\Users\paras\Documents\GitHub\virtual-file-system\build\ATMosFILE.dir\Release\FileLogger.obj
 C:\Users\paras\Documents\GitHub\virtual-file-system\Program_source\logger\Logger.cpp;C:\Users\paras\Documents\GitHub\virtual-file-system\build\ATMosFILE.dir\Release\Logger.obj
@@ -35,3 +38,4 @@ C:\Users\paras\Documents\GitHub\virtual-file-system\Program_source\users\BaseUse
 C:\Users\paras\Documents\GitHub\virtual-file-system\Program_source\users\Group.cpp;C:\Users\paras\Documents\GitHub\virtual-file-system\build\ATMosFILE.dir\Release\Group.obj
 C:\Users\paras\Documents\GitHub\virtual-file-system\Program_source\users\User.cpp;C:\Users\paras\Documents\GitHub\virtual-file-system\build\ATMosFILE.dir\Release\User.obj
 C:\Users\paras\Documents\GitHub\virtual-file-system\Program_source\external\sqlite3.c;C:\Users\paras\Documents\GitHub\virtual-file-system\build\ATMosFILE.dir\Release\sqlite3.obj
+C:\Users\paras\Documents\GitHub\virtual-file-system\build\ATMosFILE_autogen\mocs_compilation_Release.cpp;C:\Users\paras\Documents\GitHub\virtual-file-system\build\ATMosFILE.dir\Release\mocs_compilation_Release.obj

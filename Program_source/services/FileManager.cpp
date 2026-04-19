@@ -402,3 +402,53 @@ int FileManager::getEntityId(const std::string& name, int parentId) {
     sqlite3_finalize(stmt);
     return id;
 }
+
+std::shared_ptr<Folder> FileManager::buildTree(int folderId, Folder* parent) {
+    // citim datele folderului curent
+    const char* sql = "SELECT name, owner_user, owner_group FROM entities WHERE id = ?;";
+    sqlite3_stmt* stmt = nullptr;
+    sqlite3_prepare_v2(db.getConnection(), sql, -1, &stmt, nullptr);
+    sqlite3_bind_int(stmt, 1, folderId);
+
+    if (sqlite3_step(stmt) != SQLITE_ROW) {
+        sqlite3_finalize(stmt);
+        return nullptr;
+    }
+
+    std::string name  = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
+    std::string owner = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
+    std::string group = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
+    sqlite3_finalize(stmt);
+
+    auto folder = std::make_shared<Folder>(name, owner, group, parent);
+
+    // citim copiii
+    const char* childSql = "SELECT id, name, type, owner_user, owner_group FROM entities WHERE parent_id = ?;";
+    sqlite3_prepare_v2(db.getConnection(), childSql, -1, &stmt, nullptr);
+    sqlite3_bind_int(stmt, 1, folderId);
+
+    std::vector<std::pair<int,std::string>> subfolders; // id, type
+
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        int    id    = sqlite3_column_int(stmt, 0);
+        std::string cname  = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
+        std::string type   = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
+        std::string cowner = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3));
+        std::string cgroup = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4));
+
+        if (type == "TEXT") {
+            folder->addChild(getTextFile(id));
+        } else if (type == "FOLDER" || type == "SHARED_FOLDER") {
+            subfolders.push_back({id, type});
+        }
+    }
+    sqlite3_finalize(stmt);
+
+    // recursie pentru subfoldere
+    for (auto& [id, type] : subfolders) {
+        auto sub = buildTree(id, folder.get());
+        if (sub) folder->addChild(sub);
+    }
+
+    return folder;
+}

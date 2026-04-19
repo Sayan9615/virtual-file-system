@@ -55,6 +55,7 @@ public:
     // Utilitare
     int getRootId();
     int getEntityId(const std::string& name, int parentId);
+    std::shared_ptr<Folder> buildTree(int folderId, Folder* parent = nullptr);
 
 private:
     Database& db;

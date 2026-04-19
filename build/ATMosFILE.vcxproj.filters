@@ -1,6 +1,9 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
+    <ClCompile Include="C:\Users\paras\Documents\GitHub\virtual-file-system\build\ATMosFILE_autogen\mocs_compilation_Debug.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="C:\Users\paras\Documents\GitHub\virtual-file-system\Program_source\exceptions\AccessDeniedException.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -38,6 +41,15 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="C:\Users\paras\Documents\GitHub\virtual-file-system\Program_source\filesystem\TextFile.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\paras\Documents\GitHub\virtual-file-system\Program_source\gui\FileSystemModel.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\paras\Documents\GitHub\virtual-file-system\Program_source\gui\LoginDialog.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\paras\Documents\GitHub\virtual-file-system\Program_source\gui\MainWindow.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="C:\Users\paras\Documents\GitHub\virtual-file-system\Program_source\logger\ConsoleLogger.cpp">
@@ -110,6 +122,15 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="C:\Users\paras\Documents\GitHub\virtual-file-system\Program_source\external\sqlite3.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\paras\Documents\GitHub\virtual-file-system\build\ATMosFILE_autogen\mocs_compilation_Release.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\paras\Documents\GitHub\virtual-file-system\build\ATMosFILE_autogen\mocs_compilation_MinSizeRel.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\paras\Documents\GitHub\virtual-file-system\build\ATMosFILE_autogen\mocs_compilation_RelWithDebInfo.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
