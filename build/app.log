@@ -13,3 +13,51 @@
 [2026-04-19 12:58:57] LOGOUT|marius|Logout efectuat
 [2026-04-19 12:58:57] PERMISSION_DENIED|ion|Acces write refuzat la: document.txt
 [2026-04-19 12:58:57] FILE_UPLOAD|marius|Redenumit: document.txt -> document_nou.txt
+[2026-04-19 19:44:01] FILE_UPLOAD|marius|Folder creat: marius
+[2026-04-19 19:44:01] FILE_UPLOAD|marius|Fisier creat: doc.txt
+[2026-04-19 19:44:01] FILE_UPLOAD|marius|Fisier creat: notes.txt
+[2026-04-19 19:44:01] FILE_UPLOAD|marius|Fisier actualizat id=3
+[2026-04-19 19:44:01] FILE_SHARE|ion|Entitate partajata cu: ion
+[2026-04-19 19:44:01] FILE_DELETE|marius|Entitate stearsa id=3
+[2026-04-19 19:44:10] FILE_UPLOAD|marius|Folder creat: marius
+[2026-04-19 19:44:10] FILE_UPLOAD|marius|Fisier creat: doc.txt
+[2026-04-19 19:44:10] FILE_UPLOAD|marius|Fisier creat: notes.txt
+[2026-04-19 19:44:10] FILE_UPLOAD|marius|Fisier actualizat id=6
+[2026-04-19 19:44:10] FILE_SHARE|ion|Entitate partajata cu: ion
+[2026-04-19 19:44:10] FILE_DELETE|marius|Entitate stearsa id=6
+[2026-04-19 19:44:12] FILE_UPLOAD|marius|Folder creat: marius
+[2026-04-19 19:44:12] FILE_UPLOAD|marius|Fisier creat: doc.txt
+[2026-04-19 19:44:12] FILE_UPLOAD|marius|Fisier creat: notes.txt
+[2026-04-19 19:44:12] FILE_UPLOAD|marius|Fisier actualizat id=9
+[2026-04-19 19:44:12] FILE_SHARE|ion|Entitate partajata cu: ion
+[2026-04-19 19:44:12] FILE_DELETE|marius|Entitate stearsa id=9
+[2026-04-19 19:44:16] FILE_UPLOAD|marius|Folder creat: marius
+[2026-04-19 19:44:16] FILE_UPLOAD|marius|Fisier creat: doc.txt
+[2026-04-19 19:44:16] FILE_UPLOAD|marius|Fisier creat: notes.txt
+[2026-04-19 19:44:16] FILE_UPLOAD|marius|Fisier actualizat id=12
+[2026-04-19 19:44:16] FILE_SHARE|ion|Entitate partajata cu: ion
+[2026-04-19 19:44:16] FILE_DELETE|marius|Entitate stearsa id=12
+[2026-04-19 19:45:03] FILE_UPLOAD|marius|Folder creat: marius
+[2026-04-19 19:45:03] FILE_UPLOAD|marius|Fisier creat: doc.txt
+[2026-04-19 19:45:03] FILE_UPLOAD|marius|Fisier creat: notes.txt
+[2026-04-19 19:45:03] FILE_UPLOAD|marius|Fisier actualizat id=15
+[2026-04-19 19:45:03] FILE_SHARE|ion|Entitate partajata cu: ion
+[2026-04-19 19:45:03] FILE_DELETE|marius|Entitate stearsa id=15
+[2026-04-19 19:45:55] FILE_UPLOAD|marius|Folder creat: marius
+[2026-04-19 19:45:55] FILE_UPLOAD|marius|Fisier creat: doc.txt
+[2026-04-19 19:45:55] FILE_UPLOAD|marius|Fisier creat: notes.txt
+[2026-04-19 19:45:55] FILE_UPLOAD|marius|Fisier actualizat id=18
+[2026-04-19 19:45:55] FILE_SHARE|ion|Entitate partajata cu: ion
+[2026-04-19 19:45:55] FILE_DELETE|marius|Entitate stearsa id=18
+[2026-04-19 19:45:59] FILE_UPLOAD|marius|Folder creat: marius
+[2026-04-19 19:45:59] FILE_UPLOAD|marius|Fisier creat: doc.txt
+[2026-04-19 19:45:59] FILE_UPLOAD|marius|Fisier creat: notes.txt
+[2026-04-19 19:45:59] FILE_UPLOAD|marius|Fisier actualizat id=21
+[2026-04-19 19:45:59] FILE_SHARE|ion|Entitate partajata cu: ion
+[2026-04-19 19:45:59] FILE_DELETE|marius|Entitate stearsa id=21
+[2026-04-19 19:46:04] FILE_UPLOAD|marius|Folder creat: marius
+[2026-04-19 19:46:04] FILE_UPLOAD|marius|Fisier creat: doc.txt
+[2026-04-19 19:46:04] FILE_UPLOAD|marius|Fisier creat: notes.txt
+[2026-04-19 19:46:04] FILE_UPLOAD|marius|Fisier actualizat id=24
+[2026-04-19 19:46:04] FILE_SHARE|ion|Entitate partajata cu: ion
+[2026-04-19 19:46:04] FILE_DELETE|marius|Entitate stearsa id=24
