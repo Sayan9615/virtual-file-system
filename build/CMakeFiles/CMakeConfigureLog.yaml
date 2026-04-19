@@ -69,7 +69,7 @@ events:
       The output was:
       0
       MSBuild version 17.14.40+3e7442088 for .NET Framework
-      Build started 18.04.2026 20:10:27.
+      Build started 19.04.2026 12:32:17.
       
       Project "C:\\Users\\paras\\Documents\\GitHub\\virtual-file-system\\build\\CMakeFiles\\4.3.1\\CompilerIdC\\CompilerIdC.vcxproj" on node 1 (default targets).
       PrepareForBuild:
@@ -98,7 +98,7 @@ events:
           0 Warning(s)
           0 Error(s)
       
-      Time Elapsed 00:00:00.68
+      Time Elapsed 00:00:00.44
       
       
       Compilation of the C compiler identification source "CMakeCCompilerId.c" produced "CompilerIdC.exe"
@@ -595,7 +595,7 @@ events:
       The output was:
       0
       MSBuild version 17.14.40+3e7442088 for .NET Framework
-      Build started 18.04.2026 20:10:28.
+      Build started 19.04.2026 12:32:17.
       
       Project "C:\\Users\\paras\\Documents\\GitHub\\virtual-file-system\\build\\CMakeFiles\\4.3.1\\CompilerIdCXX\\CompilerIdCXX.vcxproj" on node 1 (default targets).
       PrepareForBuild:
@@ -624,7 +624,7 @@ events:
           0 Warning(s)
           0 Error(s)
       
-      Time Elapsed 00:00:00.44
+      Time Elapsed 00:00:00.43
       
       
       Compilation of the CXX compiler identification source "CMakeCXXCompilerId.cpp" produced "CompilerIdCXX.exe"
@@ -934,8 +934,8 @@ events:
     checks:
       - "Detecting C compiler ABI info"
     directories:
-      source: "C:/Users/paras/Documents/GitHub/virtual-file-system/build/CMakeFiles/CMakeScratch/TryCompile-pxkc1q"
-      binary: "C:/Users/paras/Documents/GitHub/virtual-file-system/build/CMakeFiles/CMakeScratch/TryCompile-pxkc1q"
+      source: "C:/Users/paras/Documents/GitHub/virtual-file-system/build/CMakeFiles/CMakeScratch/TryCompile-qnhoah"
+      binary: "C:/Users/paras/Documents/GitHub/virtual-file-system/build/CMakeFiles/CMakeScratch/TryCompile-qnhoah"
     cmakeVariables:
       CMAKE_CXX_STDLIB_MODULES_JSON: ""
       CMAKE_C_FLAGS: "/DWIN32 /D_WINDOWS"
@@ -945,39 +945,39 @@ events:
       variable: "CMAKE_C_ABI_COMPILED"
       cached: true
       stdout: |
-        Change Dir: 'C:/Users/paras/Documents/GitHub/virtual-file-system/build/CMakeFiles/CMakeScratch/TryCompile-pxkc1q'
+        Change Dir: 'C:/Users/paras/Documents/GitHub/virtual-file-system/build/CMakeFiles/CMakeScratch/TryCompile-qnhoah'
         
-        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/MSBuild/Current/Bin/amd64/MSBuild.exe" cmTC_20c39.vcxproj /p:Configuration=Debug /p:Platform=x64 /p:VisualStudioVersion=17.0 /v:n
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/MSBuild/Current/Bin/amd64/MSBuild.exe" cmTC_5f2e0.vcxproj /p:Configuration=Debug /p:Platform=x64 /p:VisualStudioVersion=17.0 /v:n
         MSBuild version 17.14.40+3e7442088 for .NET Framework
-        Build started 18.04.2026 20:10:29.
+        Build started 19.04.2026 12:32:18.
         
-        Project "C:\\Users\\paras\\Documents\\GitHub\\virtual-file-system\\build\\CMakeFiles\\CMakeScratch\\TryCompile-pxkc1q\\cmTC_20c39.vcxproj" on node 1 (default targets).
+        Project "C:\\Users\\paras\\Documents\\GitHub\\virtual-file-system\\build\\CMakeFiles\\CMakeScratch\\TryCompile-qnhoah\\cmTC_5f2e0.vcxproj" on node 1 (default targets).
         PrepareForBuild:
           Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
-          Creating directory "C:\\Users\\paras\\Documents\\GitHub\\virtual-file-system\\build\\CMakeFiles\\CMakeScratch\\TryCompile-pxkc1q\\Debug\\".
-          Creating directory "cmTC_20c39.dir\\Debug\\cmTC_20c39.tlog\\".
+          Creating directory "C:\\Users\\paras\\Documents\\GitHub\\virtual-file-system\\build\\CMakeFiles\\CMakeScratch\\TryCompile-qnhoah\\Debug\\".
+          Creating directory "cmTC_5f2e0.dir\\Debug\\cmTC_5f2e0.tlog\\".
         InitializeBuildStatus:
-          Creating "cmTC_20c39.dir\\Debug\\cmTC_20c39.tlog\\unsuccessfulbuild" because "AlwaysCreate" was specified.
-          Touching "cmTC_20c39.dir\\Debug\\cmTC_20c39.tlog\\unsuccessfulbuild".
+          Creating "cmTC_5f2e0.dir\\Debug\\cmTC_5f2e0.tlog\\unsuccessfulbuild" because "AlwaysCreate" was specified.
+          Touching "cmTC_5f2e0.dir\\Debug\\cmTC_5f2e0.tlog\\unsuccessfulbuild".
         ClCompile:
-          C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\CL.exe /c /Zi /W1 /WX- /diagnostics:column /Od /Ob0 /D _MBCS /D WIN32 /D _WINDOWS /D _MBCS /D "CMAKE_INTDIR=\\"Debug\\"" /RTC1 /MDd /Fo"cmTC_20c39.dir\\Debug\\\\" /Fd"cmTC_20c39.dir\\Debug\\vc143.pdb" /external:W1 /TC /errorReport:queue "C:\\Program Files\\CMake\\share\\cmake-4.3\\Modules\\CMakeCCompilerABI.c"
+          C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\CL.exe /c /Zi /W1 /WX- /diagnostics:column /Od /Ob0 /D _MBCS /D WIN32 /D _WINDOWS /D _MBCS /D "CMAKE_INTDIR=\\"Debug\\"" /RTC1 /MDd /Fo"cmTC_5f2e0.dir\\Debug\\\\" /Fd"cmTC_5f2e0.dir\\Debug\\vc143.pdb" /external:W1 /TC /errorReport:queue "C:\\Program Files\\CMake\\share\\cmake-4.3\\Modules\\CMakeCCompilerABI.c"
           Microsoft (R) C/C++ Optimizing Compiler Version 19.44.35222 for x64
           Copyright (C) Microsoft Corporation.  All rights reserved.
-          cl /c /Zi /W1 /WX- /diagnostics:column /Od /Ob0 /D _MBCS /D WIN32 /D _WINDOWS /D _MBCS /D "CMAKE_INTDIR=\\"Debug\\"" /RTC1 /MDd /Fo"cmTC_20c39.dir\\Debug\\\\" /Fd"cmTC_20c39.dir\\Debug\\vc143.pdb" /external:W1 /TC /errorReport:queue "C:\\Program Files\\CMake\\share\\cmake-4.3\\Modules\\CMakeCCompilerABI.c"
+          cl /c /Zi /W1 /WX- /diagnostics:column /Od /Ob0 /D _MBCS /D WIN32 /D _WINDOWS /D _MBCS /D "CMAKE_INTDIR=\\"Debug\\"" /RTC1 /MDd /Fo"cmTC_5f2e0.dir\\Debug\\\\" /Fd"cmTC_5f2e0.dir\\Debug\\vc143.pdb" /external:W1 /TC /errorReport:queue "C:\\Program Files\\CMake\\share\\cmake-4.3\\Modules\\CMakeCCompilerABI.c"
           CMakeCCompilerABI.c
         Link:
-          C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\link.exe /OUT:"C:\\Users\\paras\\Documents\\GitHub\\virtual-file-system\\build\\CMakeFiles\\CMakeScratch\\TryCompile-pxkc1q\\Debug\\cmTC_20c39.exe" /INCREMENTAL /ILK:"cmTC_20c39.dir\\Debug\\cmTC_20c39.ilk" /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"C:/Users/paras/Documents/GitHub/virtual-file-system/build/CMakeFiles/CMakeScratch/TryCompile-pxkc1q/Debug/cmTC_20c39.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /IMPLIB:"C:/Users/paras/Documents/GitHub/virtual-file-system/build/CMakeFiles/CMakeScratch/TryCompile-pxkc1q/Debug/cmTC_20c39.lib" /MACHINE:X64  /machine:x64 cmTC_20c39.dir\\Debug\\CMakeCCompilerABI.obj
-          cmTC_20c39.vcxproj -> C:\\Users\\paras\\Documents\\GitHub\\virtual-file-system\\build\\CMakeFiles\\CMakeScratch\\TryCompile-pxkc1q\\Debug\\cmTC_20c39.exe
+          C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\link.exe /OUT:"C:\\Users\\paras\\Documents\\GitHub\\virtual-file-system\\build\\CMakeFiles\\CMakeScratch\\TryCompile-qnhoah\\Debug\\cmTC_5f2e0.exe" /INCREMENTAL /ILK:"cmTC_5f2e0.dir\\Debug\\cmTC_5f2e0.ilk" /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"C:/Users/paras/Documents/GitHub/virtual-file-system/build/CMakeFiles/CMakeScratch/TryCompile-qnhoah/Debug/cmTC_5f2e0.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /IMPLIB:"C:/Users/paras/Documents/GitHub/virtual-file-system/build/CMakeFiles/CMakeScratch/TryCompile-qnhoah/Debug/cmTC_5f2e0.lib" /MACHINE:X64  /machine:x64 cmTC_5f2e0.dir\\Debug\\CMakeCCompilerABI.obj
+          cmTC_5f2e0.vcxproj -> C:\\Users\\paras\\Documents\\GitHub\\virtual-file-system\\build\\CMakeFiles\\CMakeScratch\\TryCompile-qnhoah\\Debug\\cmTC_5f2e0.exe
         FinalizeBuildStatus:
-          Deleting file "cmTC_20c39.dir\\Debug\\cmTC_20c39.tlog\\unsuccessfulbuild".
-          Touching "cmTC_20c39.dir\\Debug\\cmTC_20c39.tlog\\cmTC_20c39.lastbuildstate".
-        Done Building Project "C:\\Users\\paras\\Documents\\GitHub\\virtual-file-system\\build\\CMakeFiles\\CMakeScratch\\TryCompile-pxkc1q\\cmTC_20c39.vcxproj" (default targets).
+          Deleting file "cmTC_5f2e0.dir\\Debug\\cmTC_5f2e0.tlog\\unsuccessfulbuild".
+          Touching "cmTC_5f2e0.dir\\Debug\\cmTC_5f2e0.tlog\\cmTC_5f2e0.lastbuildstate".
+        Done Building Project "C:\\Users\\paras\\Documents\\GitHub\\virtual-file-system\\build\\CMakeFiles\\CMakeScratch\\TryCompile-qnhoah\\cmTC_5f2e0.vcxproj" (default targets).
         
         Build succeeded.
             0 Warning(s)
             0 Error(s)
         
-        Time Elapsed 00:00:00.42
+        Time Elapsed 00:00:00.45
         
       exitCode: 0
   -
@@ -1017,8 +1017,8 @@ events:
     checks:
       - "Detecting CXX compiler ABI info"
     directories:
-      source: "C:/Users/paras/Documents/GitHub/virtual-file-system/build/CMakeFiles/CMakeScratch/TryCompile-4buxu2"
-      binary: "C:/Users/paras/Documents/GitHub/virtual-file-system/build/CMakeFiles/CMakeScratch/TryCompile-4buxu2"
+      source: "C:/Users/paras/Documents/GitHub/virtual-file-system/build/CMakeFiles/CMakeScratch/TryCompile-ymk1hc"
+      binary: "C:/Users/paras/Documents/GitHub/virtual-file-system/build/CMakeFiles/CMakeScratch/TryCompile-ymk1hc"
     cmakeVariables:
       CMAKE_CXX_FLAGS: "/DWIN32 /D_WINDOWS /EHsc"
       CMAKE_CXX_FLAGS_DEBUG: "/Zi /Ob0 /Od /RTC1"
@@ -1029,39 +1029,39 @@ events:
       variable: "CMAKE_CXX_ABI_COMPILED"
       cached: true
       stdout: |
-        Change Dir: 'C:/Users/paras/Documents/GitHub/virtual-file-system/build/CMakeFiles/CMakeScratch/TryCompile-4buxu2'
+        Change Dir: 'C:/Users/paras/Documents/GitHub/virtual-file-system/build/CMakeFiles/CMakeScratch/TryCompile-ymk1hc'
         
-        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/MSBuild/Current/Bin/amd64/MSBuild.exe" cmTC_8ea26.vcxproj /p:Configuration=Debug /p:Platform=x64 /p:VisualStudioVersion=17.0 /v:n
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/MSBuild/Current/Bin/amd64/MSBuild.exe" cmTC_91ddc.vcxproj /p:Configuration=Debug /p:Platform=x64 /p:VisualStudioVersion=17.0 /v:n
         MSBuild version 17.14.40+3e7442088 for .NET Framework
-        Build started 18.04.2026 20:10:29.
+        Build started 19.04.2026 12:32:19.
         
-        Project "C:\\Users\\paras\\Documents\\GitHub\\virtual-file-system\\build\\CMakeFiles\\CMakeScratch\\TryCompile-4buxu2\\cmTC_8ea26.vcxproj" on node 1 (default targets).
+        Project "C:\\Users\\paras\\Documents\\GitHub\\virtual-file-system\\build\\CMakeFiles\\CMakeScratch\\TryCompile-ymk1hc\\cmTC_91ddc.vcxproj" on node 1 (default targets).
         PrepareForBuild:
           Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
-          Creating directory "C:\\Users\\paras\\Documents\\GitHub\\virtual-file-system\\build\\CMakeFiles\\CMakeScratch\\TryCompile-4buxu2\\Debug\\".
-          Creating directory "cmTC_8ea26.dir\\Debug\\cmTC_8ea26.tlog\\".
+          Creating directory "C:\\Users\\paras\\Documents\\GitHub\\virtual-file-system\\build\\CMakeFiles\\CMakeScratch\\TryCompile-ymk1hc\\Debug\\".
+          Creating directory "cmTC_91ddc.dir\\Debug\\cmTC_91ddc.tlog\\".
         InitializeBuildStatus:
-          Creating "cmTC_8ea26.dir\\Debug\\cmTC_8ea26.tlog\\unsuccessfulbuild" because "AlwaysCreate" was specified.
-          Touching "cmTC_8ea26.dir\\Debug\\cmTC_8ea26.tlog\\unsuccessfulbuild".
+          Creating "cmTC_91ddc.dir\\Debug\\cmTC_91ddc.tlog\\unsuccessfulbuild" because "AlwaysCreate" was specified.
+          Touching "cmTC_91ddc.dir\\Debug\\cmTC_91ddc.tlog\\unsuccessfulbuild".
         ClCompile:
-          C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\CL.exe /c /Zi /W1 /WX- /diagnostics:column /Od /Ob0 /D _MBCS /D WIN32 /D _WINDOWS /D _MBCS /D "CMAKE_INTDIR=\\"Debug\\"" /EHsc /RTC1 /MDd /Fo"cmTC_8ea26.dir\\Debug\\\\" /Fd"cmTC_8ea26.dir\\Debug\\vc143.pdb" /external:W1 /TP /errorReport:queue "C:\\Program Files\\CMake\\share\\cmake-4.3\\Modules\\CMakeCXXCompilerABI.cpp"
+          C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\CL.exe /c /Zi /W1 /WX- /diagnostics:column /Od /Ob0 /D _MBCS /D WIN32 /D _WINDOWS /D _MBCS /D "CMAKE_INTDIR=\\"Debug\\"" /EHsc /RTC1 /MDd /Fo"cmTC_91ddc.dir\\Debug\\\\" /Fd"cmTC_91ddc.dir\\Debug\\vc143.pdb" /external:W1 /TP /errorReport:queue "C:\\Program Files\\CMake\\share\\cmake-4.3\\Modules\\CMakeCXXCompilerABI.cpp"
           Microsoft (R) C/C++ Optimizing Compiler Version 19.44.35222 for x64
           Copyright (C) Microsoft Corporation.  All rights reserved.
-          cl /c /Zi /W1 /WX- /diagnostics:column /Od /Ob0 /D _MBCS /D WIN32 /D _WINDOWS /D _MBCS /D "CMAKE_INTDIR=\\"Debug\\"" /EHsc /RTC1 /MDd /Fo"cmTC_8ea26.dir\\Debug\\\\" /Fd"cmTC_8ea26.dir\\Debug\\vc143.pdb" /external:W1 /TP /errorReport:queue "C:\\Program Files\\CMake\\share\\cmake-4.3\\Modules\\CMakeCXXCompilerABI.cpp"
+          cl /c /Zi /W1 /WX- /diagnostics:column /Od /Ob0 /D _MBCS /D WIN32 /D _WINDOWS /D _MBCS /D "CMAKE_INTDIR=\\"Debug\\"" /EHsc /RTC1 /MDd /Fo"cmTC_91ddc.dir\\Debug\\\\" /Fd"cmTC_91ddc.dir\\Debug\\vc143.pdb" /external:W1 /TP /errorReport:queue "C:\\Program Files\\CMake\\share\\cmake-4.3\\Modules\\CMakeCXXCompilerABI.cpp"
           CMakeCXXCompilerABI.cpp
         Link:
-          C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\link.exe /OUT:"C:\\Users\\paras\\Documents\\GitHub\\virtual-file-system\\build\\CMakeFiles\\CMakeScratch\\TryCompile-4buxu2\\Debug\\cmTC_8ea26.exe" /INCREMENTAL /ILK:"cmTC_8ea26.dir\\Debug\\cmTC_8ea26.ilk" /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"C:/Users/paras/Documents/GitHub/virtual-file-system/build/CMakeFiles/CMakeScratch/TryCompile-4buxu2/Debug/cmTC_8ea26.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /IMPLIB:"C:/Users/paras/Documents/GitHub/virtual-file-system/build/CMakeFiles/CMakeScratch/TryCompile-4buxu2/Debug/cmTC_8ea26.lib" /MACHINE:X64  /machine:x64 cmTC_8ea26.dir\\Debug\\CMakeCXXCompilerABI.obj
-          cmTC_8ea26.vcxproj -> C:\\Users\\paras\\Documents\\GitHub\\virtual-file-system\\build\\CMakeFiles\\CMakeScratch\\TryCompile-4buxu2\\Debug\\cmTC_8ea26.exe
+          C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\link.exe /OUT:"C:\\Users\\paras\\Documents\\GitHub\\virtual-file-system\\build\\CMakeFiles\\CMakeScratch\\TryCompile-ymk1hc\\Debug\\cmTC_91ddc.exe" /INCREMENTAL /ILK:"cmTC_91ddc.dir\\Debug\\cmTC_91ddc.ilk" /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"C:/Users/paras/Documents/GitHub/virtual-file-system/build/CMakeFiles/CMakeScratch/TryCompile-ymk1hc/Debug/cmTC_91ddc.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /IMPLIB:"C:/Users/paras/Documents/GitHub/virtual-file-system/build/CMakeFiles/CMakeScratch/TryCompile-ymk1hc/Debug/cmTC_91ddc.lib" /MACHINE:X64  /machine:x64 cmTC_91ddc.dir\\Debug\\CMakeCXXCompilerABI.obj
+          cmTC_91ddc.vcxproj -> C:\\Users\\paras\\Documents\\GitHub\\virtual-file-system\\build\\CMakeFiles\\CMakeScratch\\TryCompile-ymk1hc\\Debug\\cmTC_91ddc.exe
         FinalizeBuildStatus:
-          Deleting file "cmTC_8ea26.dir\\Debug\\cmTC_8ea26.tlog\\unsuccessfulbuild".
-          Touching "cmTC_8ea26.dir\\Debug\\cmTC_8ea26.tlog\\cmTC_8ea26.lastbuildstate".
-        Done Building Project "C:\\Users\\paras\\Documents\\GitHub\\virtual-file-system\\build\\CMakeFiles\\CMakeScratch\\TryCompile-4buxu2\\cmTC_8ea26.vcxproj" (default targets).
+          Deleting file "cmTC_91ddc.dir\\Debug\\cmTC_91ddc.tlog\\unsuccessfulbuild".
+          Touching "cmTC_91ddc.dir\\Debug\\cmTC_91ddc.tlog\\cmTC_91ddc.lastbuildstate".
+        Done Building Project "C:\\Users\\paras\\Documents\\GitHub\\virtual-file-system\\build\\CMakeFiles\\CMakeScratch\\TryCompile-ymk1hc\\cmTC_91ddc.vcxproj" (default targets).
         
         Build succeeded.
             0 Warning(s)
             0 Error(s)
         
-        Time Elapsed 00:00:00.42
+        Time Elapsed 00:00:00.50
         
       exitCode: 0
   -

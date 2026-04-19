@@ -2,14 +2,12 @@
 #include <string>
 #include "Database.h"
 #include "User.h"
+#include "EventLog.h"
+#include "../interfaces/ILogger.h"
 
 class AuthService {
-private:
-    Database& database;
-    User currentUser;
-
 public:
-    AuthService(Database& database);
+    AuthService(Database& database, iLogger& logger);
 
     bool initializeDatabase();
 
@@ -21,6 +19,10 @@ public:
     User getCurrentUser() const;
 
 private:
+    Database& database;
+    iLogger& logger;
+    User currentUser;
+
     bool userExists(const std::string& username);
     bool getUserByUsername(const std::string& username, User& user, std::string& passwordHash);
 
