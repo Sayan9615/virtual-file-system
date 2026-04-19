@@ -340,7 +340,7 @@ inline void BPlusTree<K, V>::removeFromLeaf(LeafNode<K, V> *leaf, const K &key, 
     
     if (i == (int)leaf->m_keys.size())
     {
-        cout << "Key not found!" << endl;
+        std::cout << "Key not found!" <<std::endl;
         return;
     }
     leaf->removeAt(i);

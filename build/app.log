@@ -1,0 +1,15 @@
+[2026-04-19 12:40:42] Aplicatie pornita
+[2026-04-19 12:40:42] REGISTER|marius|Utilizator inregistrat cu succes
+[2026-04-19 12:40:42] REGISTER|marius|Inregistrare esuata: userul exista deja
+[2026-04-19 12:40:42] LOGIN|marius|Login esuat: parola incorecta
+[2026-04-19 12:40:43] LOGIN|marius|Login reusit
+[2026-04-19 12:40:43] LOGOUT|marius|Logout efectuat
+[2026-04-19 12:58:56] REGISTER|marius|Inregistrare esuata: userul exista deja
+[2026-04-19 12:58:56] REGISTER|marius|Inregistrare esuata: userul exista deja
+[2026-04-19 12:58:56] REGISTER|ab|Inregistrare esuata: date invalide
+[2026-04-19 12:58:56] LOGIN|marius|Login esuat: parola incorecta
+[2026-04-19 12:58:56] LOGIN|inexistent|Login esuat: userul nu exista
+[2026-04-19 12:58:57] LOGIN|marius|Login reusit
+[2026-04-19 12:58:57] LOGOUT|marius|Logout efectuat
+[2026-04-19 12:58:57] PERMISSION_DENIED|ion|Acces write refuzat la: document.txt
+[2026-04-19 12:58:57] FILE_UPLOAD|marius|Redenumit: document.txt -> document_nou.txt

@@ -1,1 +1,90 @@
 #include "PermissionManager.h"
+#include <sstream>
+#include <algorithm>
+
+PermissionManager::PermissionManager() {
+    // Permisiuni default
+    permissions.push_back(std::make_shared<OthersPermission>(false, false));
+}
+
+void PermissionManager::addPermission(std::shared_ptr<Permission> permission) {
+    // Daca exista deja un permisiune de acelasi tip, o inlocuieste
+    removePermission(permission->getType());
+    permissions.push_back(permission);
+}
+
+void PermissionManager::removePermission(const std::string& type) {
+    permissions.erase(
+        std::remove_if(permissions.begin(), permissions.end(),
+            [&type](const std::shared_ptr<Permission>& p) {
+                return p->getType() == type;
+            }),
+        permissions.end()
+    );
+}
+
+bool PermissionManager::canRead(const std::string& username) const {
+    return check(username, "read");
+}
+
+bool PermissionManager::canWrite(const std::string& username) const {
+    return check(username, "write");
+}
+
+bool PermissionManager::check(const std::string& username, const std::string& operation) const {
+    // Prioritate: OWNER > GROUP > OTHERS
+    for (const auto& perm : permissions) {
+        if (perm->getType() == "OWNER") {
+            auto owner = std::dynamic_pointer_cast<OwnerPermission>(perm);
+            if (owner && owner->check(username, operation)) return true;
+        }
+    }
+    for (const auto& perm : permissions) {
+        if (perm->getType() == "GROUP") {
+            auto group = std::dynamic_pointer_cast<GroupPermission>(perm);
+            if (group && group->check(username, operation)) return true;
+        }
+    }
+    for (const auto& perm : permissions) {
+        if (perm->getType() == "OTHERS") {
+            return perm->check(username, operation);
+        }
+    }
+    return false;
+}
+
+std::shared_ptr<OwnerPermission> PermissionManager::getOwnerPermission() const {
+    for (const auto& perm : permissions) {
+        if (perm->getType() == "OWNER")
+            return std::dynamic_pointer_cast<OwnerPermission>(perm);
+    }
+    return nullptr;
+}
+
+std::shared_ptr<GroupPermission> PermissionManager::getGroupPermission() const {
+    for (const auto& perm : permissions) {
+        if (perm->getType() == "GROUP")
+            return std::dynamic_pointer_cast<GroupPermission>(perm);
+    }
+    return nullptr;
+}
+
+std::shared_ptr<OthersPermission> PermissionManager::getOthersPermission() const {
+    for (const auto& perm : permissions) {
+        if (perm->getType() == "OTHERS")
+            return std::dynamic_pointer_cast<OthersPermission>(perm);
+    }
+    return nullptr;
+}
+
+std::string PermissionManager::serialize() const {
+    std::ostringstream oss;
+    for (const auto& perm : permissions) {
+        oss << perm->getType() << ":" << perm->serialize() << ";";
+    }
+    return oss.str();
+}
+
+void PermissionManager::deserialize(const std::string& data) {
+    // de implementat daca e nevoie
+}

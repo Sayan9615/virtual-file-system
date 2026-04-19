@@ -4,5 +4,6 @@
 class AdminUser : public BaseUser 
 {
     public:
-        AdminUser(std::string name,std::string passwordhash) : BaseUser(name,passwordhash){};
+        AdminUser() : BaseUser() {};
+        AdminUser(int id, std::string username) : BaseUser(id,username){};
 };

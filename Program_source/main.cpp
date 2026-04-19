@@ -1,196 +1,143 @@
 #include <iostream>
-#include "filesystem/BPlusTree.h"
-#include "Database.h"
-using namespace std;
+#include "logger/TimestampedLogger.h"
+#include "services/AuthService.h"
+#include "services/Database.h"
+#include "services/EventLog.h"
+#include "filesystem/TextFile.h"
+#include <sodium.h>
 
 int main() {
+    if (sodium_init() < 0) {
+        std::cout << "Eroare la initializarea libsodium.\n";
+        return 1;
+    }
 
-    BPlusTree<string, int> tree(3);
+    // ── LOGGER ──────────────────────────────────────────────
+    TimestampedLogger logger("app.log");
+    std::cout << "==============================\n";
+    std::cout << "         LOGGER TEST          \n";
+    std::cout << "==============================\n";
 
-    // ── INSERT ──────────────────────────────────────────────
-    cout << "==============================" << endl;
-    cout << "         INSERT               " << endl;
-    cout << "==============================" << endl;
+    // ── AUTH ────────────────────────────────────────────────
+    std::cout << "\n==============================\n";
+    std::cout << "         AUTH TEST            \n";
+    std::cout << "==============================\n";
 
-    tree.insert("/root/ion/fisier1.txt", 1);
-    tree.insert("/root/ion/fisier2.txt", 2);
-    tree.insert("/root/ion/fisier3.txt", 3);
-    tree.insert("/root/maria/doc.txt",   4);
-    tree.insert("/root/maria/img.png",   5);
-    tree.insert("/root/admin/config.txt",6);
-    tree.insert("/root/ion/fisier4.txt", 7);
-    tree.insert("/root/ion/fisier5.txt", 8);
-
-    cout << "Arbore dupa inserare:" << endl;
-    tree.display();
-
-    // ── SEARCH ──────────────────────────────────────────────
-    cout << "\n==============================" << endl;
-    cout << "         SEARCH               " << endl;
-    cout << "==============================" << endl;
-
-    // cheie existenta
-    auto r1 = tree.search("/root/ion/fisier3.txt");
-    cout << "Caut /root/ion/fisier3.txt -> ";
-    if (r1.has_value())
-        cout << "GASIT, valoare: " << r1.value() << endl;
-    else
-        cout << "NU a fost gasit!" << endl;
-
-    // cheie inexistenta
-    auto r2 = tree.search("/root/inexistent.txt");
-    cout << "Caut /root/inexistent.txt  -> ";
-    if (r2.has_value())
-        cout << "GASIT, valoare: " << r2.value() << endl;
-    else
-        cout << "NU a fost gasit!" << endl;
-
-    // prima cheie
-    auto r3 = tree.search("/root/ion/fisier1.txt");
-    cout << "Caut /root/ion/fisier1.txt -> ";
-    if (r3.has_value())
-        cout << "GASIT, valoare: " << r3.value() << endl;
-    else
-        cout << "NU a fost gasit!" << endl;
-
-    // ultima cheie
-    auto r4 = tree.search("/root/maria/img.png");
-    cout << "Caut /root/maria/img.png   -> ";
-    if (r4.has_value())
-        cout << "GASIT, valoare: " << r4.value() << endl;
-    else
-        cout << "NU a fost gasit!" << endl;
-
-    // ── RANGE SEARCH ────────────────────────────────────────
-    cout << "\n==============================" << endl;
-    cout << "       RANGE SEARCH           " << endl;
-    cout << "==============================" << endl;
-
-    cout << "Fisierele lui ion:" << endl;
-    auto results1 = tree.rangeSearch(
-        "/root/ion/fisier1.txt",
-        "/root/ion/fisier5.txt"
-    );
-    if (results1.empty())
-        cout << "  Niciun rezultat!" << endl;
-    for (auto& v : results1)
-        cout << "  -> " << v << endl;
-
-    cout << "Fisierele lui maria:" << endl;
-    auto results2 = tree.rangeSearch(
-        "/root/maria/doc.txt",
-        "/root/maria/img.png"
-    );
-    if (results2.empty())
-        cout << "  Niciun rezultat!" << endl;
-    for (auto& v : results2)
-        cout << "  -> " << v << endl;
-
-    // interval fara rezultate
-    cout << "Interval inexistent:" << endl;
-    auto results3 = tree.rangeSearch(
-        "/root/zzz/a.txt",
-        "/root/zzz/z.txt"
-    );
-    if (results3.empty())
-        cout << "  Niciun rezultat!" << endl;
-    for (auto& v : results3)
-        cout << "  -> " << v << endl;
-
-    // ── UPDATE ──────────────────────────────────────────────
-    cout << "\n==============================" << endl;
-    cout << "         UPDATE               " << endl;
-    cout << "==============================" << endl;
-
-    cout << "Valoare initiala fisier1: " << tree.search("/root/ion/fisier1.txt").value() << endl;
-    tree.insert("/root/ion/fisier1.txt", 99);
-    cout << "Valoare dupa update:      " << tree.search("/root/ion/fisier1.txt").value() << endl;
-
-    // ── REMOVE ──────────────────────────────────────────────
-    cout << "\n==============================" << endl;
-    cout << "         REMOVE               " << endl;
-    cout << "==============================" << endl;
-
-    // stergere simpla
-    cout << "Sterg /root/ion/fisier3.txt ..." << endl;
-    tree.remove("/root/ion/fisier3.txt");
-
-    auto deleted1 = tree.search("/root/ion/fisier3.txt");
-    cout << "Caut dupa stergere -> ";
-    if (!deleted1.has_value())
-        cout << "Confirmat: nu mai exista!" << endl;
-    else
-        cout << "EROARE: inca exista!" << endl;
-
-    cout << "\nArbore dupa prima stergere:" << endl;
-    tree.display();
-
-    // stergeri multiple
-    cout << "\nSterg /root/maria/doc.txt ..." << endl;
-    tree.remove("/root/maria/doc.txt");
-
-    cout << "Sterg /root/admin/config.txt ..." << endl;
-    tree.remove("/root/admin/config.txt");
-
-    cout << "Sterg /root/ion/fisier5.txt ..." << endl;
-    tree.remove("/root/ion/fisier5.txt");
-
-    cout << "\nArbore dupa stergerile multiple:" << endl;
-    tree.display();
-
-    // stergere cheie inexistenta
-    cout << "\nSterg cheie inexistenta /root/ghost.txt ..." << endl;
-    tree.remove("/root/ghost.txt");
-
-    // stergere tot ce a ramas
-    cout << "\nSterg toate cheile ramase..." << endl;
-    tree.remove("/root/ion/fisier1.txt");
-    tree.remove("/root/ion/fisier2.txt");
-    tree.remove("/root/ion/fisier4.txt");
-    tree.remove("/root/maria/img.png");
-
-    cout << "\nArbore dupa stergerea tuturor cheilor:" << endl;
-    tree.display();
-
-    // ── FINAL ───────────────────────────────────────────────
-    cout << "\n==============================" << endl;
-    cout << "           DONE               " << endl;
-    cout << "==============================" << endl;
-
-    //TESTARE DATABASE START
-    cout << "\n==============================" << endl;
-    cout << "         START DB TEST         " << endl;
-    cout << "==============================" << endl;
-    Database database;
-
-    if (!database.open("../Program_source/data/filesystem_app.db")) {
+    Database db;
+    if (!db.open("project.db")) {
         std::cout << "Nu s-a putut deschide baza de date.\n";
         return 1;
     }
 
-    std::string createUsersTable = R"(
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT NOT NULL UNIQUE,
-            password_hash TEXT NOT NULL,
-            role TEXT NOT NULL
-        );
-    )";
-
-    if (!database.execute(createUsersTable)) {
-        std::cout << "Nu s-a putut crea tabela users.\n";
+    AuthService authService(db, logger);
+    if (!authService.initializeDatabase()) {
+        std::cout << "Nu s-a putut initializa tabela users.\n";
         return 1;
     }
 
-    std::cout << "Baza de date si tabela users au fost create cu succes.\n";
+    // Register
+    std::cout << "\n-- Register --\n";
+    bool reg1 = authService.registerUser("marius", "parola123");
+    std::cout << (reg1 ? "OK: marius inregistrat" : "ESUAT: marius exista deja") << "\n";
 
-    database.close();
+    bool reg2 = authService.registerUser("marius", "parola123");
+    std::cout << (reg2 ? "OK: duplicat inregistrat" : "ESUAT: user duplicat") << "\n";
 
-    cout << "\n==============================" << endl;
-    cout << "         END DB TEST         " << endl;
-    cout << "==============================" << endl;
+    bool reg3 = authService.registerUser("ab", "123");
+    std::cout << (reg3 ? "OK: date invalide acceptate" : "ESUAT: date invalide respinse corect") << "\n";
 
-    //TESTARE DATA BASE END
+    // Login
+    std::cout << "\n-- Login --\n";
+    bool login1 = authService.login("marius", "parolagresita");
+    std::cout << (login1 ? "OK: login" : "ESUAT: parola gresita respinsa corect") << "\n";
+
+    bool login2 = authService.login("inexistent", "parola123");
+    std::cout << (login2 ? "OK: login" : "ESUAT: user inexistent respins corect") << "\n";
+
+    bool login3 = authService.login("marius", "parola123");
+    std::cout << (login3 ? "OK: login reusit" : "ESUAT: login") << "\n";
+
+    if (authService.isAuthenticated()) {
+        std::cout << "User logat: " << authService.getCurrentUser().getUsername() << "\n";
+    }
+
+    // Logout
+    std::cout << "\n-- Logout --\n";
+    authService.logout();
+    std::cout << (authService.isAuthenticated() ? "EROARE: inca logat" : "OK: logout reusit") << "\n";
+
+    // ── FILESYSTEM + PERMISSIONS ────────────────────────────
+    std::cout << "\n==============================\n";
+    std::cout << "     FILESYSTEM TEST          \n";
+    std::cout << "==============================\n";
+
+    TextFile file("document.txt", "marius", "admins", "Continut initial");
+    file.setLogger(&logger);
+    file.display();
+
+    // Read/Write
+    std::cout << "\n-- Read/Write --\n";
+    std::cout << "Continut: " << file.read() << "\n";
+    file.write("Continut nou");
+    std::cout << "Dupa write: " << file.read() << "\n";
+
+    // Permissions
+    std::cout << "\n-- Permissions --\n";
+    std::cout << "marius canRead:  " << (file.getPermissions().canRead("marius")  ? "DA" : "NU") << "\n";
+    std::cout << "marius canWrite: " << (file.getPermissions().canWrite("marius") ? "DA" : "NU") << "\n";
+    std::cout << "ion canRead:     " << (file.getPermissions().canRead("ion")     ? "DA" : "NU") << "\n";
+    std::cout << "ion canWrite:    " << (file.getPermissions().canWrite("ion")    ? "DA" : "NU") << "\n";
+    std::cout << "altul canRead:   " << (file.getPermissions().canRead("altul")   ? "DA" : "NU") << "\n";
+
+    // Adauga ion in grup
+    std::cout << "\n-- Adauga ion in grupul admins --\n";
+    auto group = file.getPermissions().getGroupPermission();
+    if (group) {
+        group->addMember("ion");
+        std::cout << "ion canRead dupa adaugare: "
+                  << (file.getPermissions().canRead("ion") ? "DA" : "NU") << "\n";
+    }
+
+    // Permission denied
+    std::cout << "\n-- Permission Denied --\n";
+    if (!file.getPermissions().canWrite("ion")) {
+        EventLog(EventType::PERMISSION_DENIED, "ion",
+                 "Acces write refuzat la: " + file.getName(), logger);
+        std::cout << "ion nu poate scrie in fisier - logat\n";
+    }
+
+    // Share
+    std::cout << "\n-- Share --\n";
+    file.share("maria");
+    std::cout << "Shared with: ";
+    for (const auto& u : file.getSharedWith())
+        std::cout << u << " ";
+    std::cout << "\n";
+
+    file.revokeAccess("maria");
+    std::cout << "Dupa revocare, shared with: ";
+    for (const auto& u : file.getSharedWith())
+        std::cout << u << " ";
+    std::cout << "(gol)\n";
+
+    // Search
+    std::cout << "\n-- Search --\n";
+    auto results = file.search("nou");
+    std::cout << "Cautare 'nou': " << (results.empty() ? "negasit" : "gasit") << "\n";
+
+    // Rename
+    std::cout << "\n-- Rename --\n";
+    file.setName("document_nou.txt");
+    std::cout << "Nume nou: " << file.getName() << "\n";
+
+    // Serialize
+    std::cout << "\n-- Serialize --\n";
+    std::cout << "Serializat: " << file.serialize() << "\n";
+
+    std::cout << "\n==============================\n";
+    std::cout << "           DONE               \n";
+    std::cout << "==============================\n";
+    std::cout << "Log salvat in app.log\n";
 
     return 0;
 }

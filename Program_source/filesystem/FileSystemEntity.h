@@ -1,63 +1,61 @@
 #pragma once
-
-#include "../interfaces/iSerializable.h"
-#include "../interfaces/iDisplayable.h"
+#include "../interfaces/ISerializable.h"
+#include "../interfaces/IDisplayable.h"
+#include "../interfaces/ILogger.h"
+#include "../services/PermissionManager.h"
 #include <string>
 #include <memory>
 #include <ctime>
 #include <vector>
 
+class FileSystemEntity : public iSerializable, public iDisplayable {
+protected:
+    std::string m_name;
+    std::string m_ownerUser;
+    std::string m_ownerGroup;
+    std::time_t m_createdAt;
+    std::time_t m_modifiedAt;
+    PermissionManager m_permissions;
+    iLogger* m_logger = nullptr;
 
- class FileSystemEntity:public iSerializable, public iDisplayable
- {
-    protected:
-        std::string m_name;
-        std::string m_ownerUser;
-        std::string m_ownerGroup;
-        std::time_t m_createdAt;
-        std::time_t m_modifiedAt;
+public:
+    FileSystemEntity(const std::string& name, const std::string& ownerUser, 
+                     const std::string& ownerGroup, iLogger* logger = nullptr);
+    FileSystemEntity(const FileSystemEntity& other);
+    FileSystemEntity(FileSystemEntity&& other) noexcept;
 
-    public:
-        FileSystemEntity(const std::string& name,const std::string& ownerUser,const std::string& ownerGroup);
-        FileSystemEntity(const FileSystemEntity& other);
-        FileSystemEntity(FileSystemEntity && other)noexcept;
-        
-        //operatori de atribuire
-        FileSystemEntity& operator=(const FileSystemEntity& other);    
-        FileSystemEntity& operator=(FileSystemEntity&& other)noexcept;
+    FileSystemEntity& operator=(const FileSystemEntity& other);
+    FileSystemEntity& operator=(FileSystemEntity&& other) noexcept;
 
-        virtual ~FileSystemEntity()=default;
+    virtual ~FileSystemEntity() = default;
 
-        //getteri
-        std::string getName() const {return m_name;}
-        std::string getOwnerUser()const {return m_ownerUser;}
-        std::string getOwnerGroup()const {return m_ownerGroup;}
-        std::time_t getCreatedAt()const {return m_createdAt;}
-        std::time_t getModifiedAt()const {return m_modifiedAt;}
+    // Getteri
+    std::string getName() const { return m_name; }
+    std::string getOwnerUser() const { return m_ownerUser; }
+    std::string getOwnerGroup() const { return m_ownerGroup; }
+    std::time_t getCreatedAt() const { return m_createdAt; }
+    std::time_t getModifiedAt() const { return m_modifiedAt; }
+    PermissionManager& getPermissions() { return m_permissions; }
+    const PermissionManager& getPermissions() const { return m_permissions; }
 
+    void setLogger(iLogger* logger) { m_logger = logger; }
 
-        //setteri
-        void setName(const std::string& name);
-        void setOwnerUser(const std::string& user);
-        void setOwnerGroup(const std::string& group);
+    // Setteri
+    void setName(const std::string& name);
+    void setOwnerUser(const std::string& user);
+    void setOwnerGroup(const std::string& group);
 
+    virtual std::size_t getSize() const = 0;
+    virtual bool isFolder() const = 0;
 
-        virtual std::size_t getSize()const =0;
-        virtual bool isFolder() const =0;
+    virtual void display() const override;
+    virtual std::string getIcon() const override;
+    virtual std::string serialize() const override;
+    virtual void deserialize(const std::string& data) override;
 
-        //iDisplayable
-        virtual void display() const override;
-        virtual std::string getIcon()const override;
+    bool operator==(const FileSystemEntity& other) const;
+    bool operator!=(const FileSystemEntity& other) const;
+    bool operator<(const FileSystemEntity& other) const;
 
-        //iSerializable
-        virtual std::string serialize()const override;
-        virtual void deserialize(const std::string& data) override;
-
-        //operatori
-        bool operator==(const FileSystemEntity& other)const;
-        bool operator!=(const FileSystemEntity& other)const;
-        bool operator<(const FileSystemEntity& other)const; //pentru sortare dupa nume
-
-        friend std::ostream& operator<<(std::ostream& os,const FileSystemEntity& entity);
-
-    };
+    friend std::ostream& operator<<(std::ostream& os, const FileSystemEntity& entity);
+};
