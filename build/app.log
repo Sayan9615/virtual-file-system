@@ -1,1 +1,6 @@
-[2026-04-19 11:58:27] Aplicatie pornita
+[2026-04-19 12:40:42] Aplicatie pornita
+[2026-04-19 12:40:42] REGISTER|marius|Utilizator inregistrat cu succes
+[2026-04-19 12:40:42] REGISTER|marius|Inregistrare esuata: userul exista deja
+[2026-04-19 12:40:42] LOGIN|marius|Login esuat: parola incorecta
+[2026-04-19 12:40:43] LOGIN|marius|Login reusit
+[2026-04-19 12:40:43] LOGOUT|marius|Logout efectuat

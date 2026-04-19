@@ -8,6 +8,10 @@
 #include "logger/TimestampedLogger.h"
 #include "logger/ConsoleLogger.h"
 
+#include <sodium.h>
+#include "logger/TimestampedLogger.h"
+#include "services/AuthService.h"
+
 using namespace std;
 
 int main() {
@@ -60,6 +64,48 @@ int main() {
 
     fileLog.log("Aplicatie pornita");
     consoleLog.log("Aplicatie pornita");
+
+    if (sodium_init() < 0) return 1;
+
+    // Initializare logger
+    TimestampedLogger logger("app.log");
+
+    // Initializare DB si AuthService
+    Database db;
+    if (!db.open("project.db")) return 1;
+
+    AuthService authService(db, logger);
+    if (!authService.initializeDatabase()) return 1;
+
+    // Test register
+    std::cout << "=== REGISTER ===\n";
+    bool reg = authService.registerUser("marius", "parola123");
+    std::cout << (reg ? "Register OK" : "Register ESUAT") << "\n";
+
+    // Test register duplicat
+    bool reg2 = authService.registerUser("marius", "parola123");
+    std::cout << (reg2 ? "Register OK" : "Register ESUAT - user exista deja") << "\n";
+
+    // Test login gresit
+    std::cout << "\n=== LOGIN ===\n";
+    bool loginGresit = authService.login("marius", "parolagresita");
+    std::cout << (loginGresit ? "Login OK" : "Login ESUAT - parola gresita") << "\n";
+
+    // Test login corect
+    bool loginCorect = authService.login("marius", "parola123");
+    std::cout << (loginCorect ? "Login OK" : "Login ESUAT") << "\n";
+
+    // Test user curent
+    if (authService.isAuthenticated()) {
+        std::cout << "User logat: " << authService.getCurrentUser().getUsername() << "\n";
+    }
+
+    // Test logout
+    std::cout << "\n=== LOGOUT ===\n";
+    authService.logout();
+    std::cout << (authService.isAuthenticated() ? "Inca logat" : "Logout OK") << "\n";
+
+
 
     return 0;
 }
