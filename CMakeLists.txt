@@ -45,3 +45,12 @@ target_link_libraries(ATMosFILE PRIVATE
 )
 
 target_compile_definitions(ATMosFILE PRIVATE SODIUM_STATIC)
+
+# Copiaza DLL-urile Qt automat dupa build
+find_program(WINDEPLOYQT windeployqt HINTS "${CMAKE_PREFIX_PATH}/bin")
+if(WINDEPLOYQT)
+    add_custom_command(TARGET ATMosFILE POST_BUILD
+        COMMAND "${WINDEPLOYQT}" "$<TARGET_FILE:ATMosFILE>"
+        COMMENT "Deploying Qt DLLs..."
+    )
+endif()
