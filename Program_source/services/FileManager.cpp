@@ -302,7 +302,28 @@ bool FileManager::shareEntity(int entityId, const std::string& username) {
     return success;
 }
 
+bool FileManager::isSharedWith(int entityId, const std::string& username) const {
+    const char* sql = "SELECT shared_with FROM entities WHERE id = ?;";
+    sqlite3_stmt* stmt = nullptr;
+    sqlite3_prepare_v2(db.getConnection(), sql, -1, &stmt, nullptr);
+    sqlite3_bind_int(stmt, 1, entityId);
+
+    bool found = false;
+    if (sqlite3_step(stmt) == SQLITE_ROW) {
+        const char* raw = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
+        if (raw) {
+            std::istringstream ss(raw);
+            std::string name;
+            while (std::getline(ss, name, ','))
+                if (name == username) { found = true; break; }
+        }
+    }
+    sqlite3_finalize(stmt);
+    return found;
+}
+
 bool FileManager::checkPermission(int entityId, const std::string& username, const std::string& operation) {
+    if (isSharedWith(entityId, username) && operation == "read") return true;
     PermissionManager pm = loadPermissions(entityId);
     return pm.check(username, operation);
 }
@@ -459,7 +480,8 @@ int FileManager::getEntityId(const std::string& name, int parentId) {
     return id;
 }
 
-std::shared_ptr<Folder> FileManager::buildTree(int folderId, Folder* parent) {
+std::shared_ptr<Folder> FileManager::buildTree(int folderId, Folder* parent,
+                                               const std::string& username) {
     // citim datele folderului curent
     const char* sql = "SELECT name, owner_user, owner_group FROM entities WHERE id = ?;";
     sqlite3_stmt* stmt = nullptr;
@@ -484,14 +506,14 @@ std::shared_ptr<Folder> FileManager::buildTree(int folderId, Folder* parent) {
     sqlite3_prepare_v2(db.getConnection(), childSql, -1, &stmt, nullptr);
     sqlite3_bind_int(stmt, 1, folderId);
 
-    std::vector<std::pair<int,std::string>> subfolders; // id, type
+    std::vector<std::pair<int,std::string>> subfolders;
 
     while (sqlite3_step(stmt) == SQLITE_ROW) {
-        int    id    = sqlite3_column_int(stmt, 0);
-        std::string cname  = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
-        std::string type   = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
-        std::string cowner = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3));
-        std::string cgroup = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4));
+        int id         = sqlite3_column_int(stmt, 0);
+        std::string type = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
+
+        if (!username.empty() && !checkPermission(id, username, "read"))
+            continue;
 
         if (type == "TEXT") {
             folder->addChild(getTextFile(id));
@@ -503,8 +525,38 @@ std::shared_ptr<Folder> FileManager::buildTree(int folderId, Folder* parent) {
 
     // recursie pentru subfoldere
     for (auto& [id, type] : subfolders) {
-        auto sub = buildTree(id, folder.get());
+        auto sub = buildTree(id, folder.get(), username);
         if (sub) folder->addChild(sub);
+    }
+
+    // la nivel root, adauga fisierele partajate cu userul
+    // care se afla in foldere inaccesibile lui
+    if (parent == nullptr && !username.empty()) {
+        const char* sharedSql =
+            "SELECT id FROM entities WHERE type = 'TEXT' "
+            "AND ',' || shared_with || ',' LIKE ?;";
+        std::string pattern = "%," + username + ",%";
+        sqlite3_stmt* sharedStmt = nullptr;
+        sqlite3_prepare_v2(db.getConnection(), sharedSql, -1, &sharedStmt, nullptr);
+        sqlite3_bind_text(sharedStmt, 1, pattern.c_str(), -1, SQLITE_TRANSIENT);
+
+        while (sqlite3_step(sharedStmt) == SQLITE_ROW) {
+            int sharedId = sqlite3_column_int(sharedStmt, 0);
+            // adauga doar daca nu e deja in arbore (nu are acces la folder parinte)
+            if (!checkPermission(sharedId, username, "read") ||
+                !isSharedWith(sharedId, username)) continue;
+
+            // verifica daca fisierul e deja vizibil in arbore
+            bool alreadyVisible = false;
+            for (const auto& child : folder->getChildren())
+                if (child->getId() == sharedId) { alreadyVisible = true; break; }
+
+            if (!alreadyVisible) {
+                auto file = getTextFile(sharedId);
+                if (file) folder->addChild(file);
+            }
+        }
+        sqlite3_finalize(sharedStmt);
     }
 
     return folder;

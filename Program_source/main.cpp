@@ -38,6 +38,7 @@ void printMenu(const std::string& username) {
     std::cout << "6. Cauta (nume sau continut)\n";
     std::cout << "7. Test SearchEngine\n";
     std::cout << "8. Test permisiuni grup\n";
+    std::cout << "9. Afiseaza toti utilizatorii\n";
     std::cout << "0. Logout & Iesire\n";
     std::cout << "Optiune: ";
 }
@@ -95,7 +96,7 @@ int main() {
     std::cout << "Bun venit, " << username << "!\n";
 
     // ── Construieste arborele ─────────────────────────────────────
-    auto root = fm.buildTree(fm.getRootId());
+    auto root = fm.buildTree(fm.getRootId(), nullptr, username);
     if (!root) {
         std::cerr << "Eroare la incarcarea arborelui!\n";
         return 1;
@@ -116,7 +117,7 @@ int main() {
         fm.createBinaryFile("photo",  username, "users", ".jpg", imgsId);
         fm.createBinaryFile("backup", username, "users", ".bin", docsId);
 
-        root = fm.buildTree(fm.getRootId());
+        root = fm.buildTree(fm.getRootId(), nullptr, username);
         std::cout << "Date de test adaugate!\n";
     }
 
@@ -142,7 +143,7 @@ int main() {
 
                 if (fm.createFolder(name, username, group, parentId)) {
                     std::cout << "Folder creat!\n";
-                    root = fm.buildTree(fm.getRootId());
+                    root = fm.buildTree(fm.getRootId(), nullptr, username);
                 } else {
                     std::cout << "Eroare la creare folder!\n";
                 }
@@ -159,7 +160,7 @@ int main() {
 
                 if (fm.createTextFile(name, username, group, content, parentId)) {
                     std::cout << "Fisier creat!\n";
-                    root = fm.buildTree(fm.getRootId());
+                    root = fm.buildTree(fm.getRootId(), nullptr, username);
                 } else {
                     std::cout << "Eroare la creare fisier!\n";
                 }
@@ -169,6 +170,10 @@ int main() {
             case 4: {
                 int id;
                 std::cout << "ID fisier: "; std::cin >> id; std::cin.ignore();
+                if (!fm.checkPermission(id, username, "read")) {
+                    std::cout << "Acces refuzat!\n";
+                    break;
+                }
                 auto file = fm.getTextFile(id);
                 if (file) {
                     std::cout << "\n--- Continut ---\n" << file->read() << "\n";
@@ -183,7 +188,7 @@ int main() {
                 std::cout << "ID entitate de sters: "; std::cin >> id; std::cin.ignore();
                 if (fm.deleteEntity(id, username)) {
                     std::cout << "Sters!\n";
-                    root = fm.buildTree(fm.getRootId());
+                    root = fm.buildTree(fm.getRootId(), nullptr, username);
                 } else {
                     std::cout << "Eroare sau permisiune refuzata!\n";
                 }
@@ -304,6 +309,15 @@ int main() {
                     default:
                         std::cout << "Optiune invalida!\n";
                 }
+                break;
+            }
+
+            case 9: {
+                auto users = auth.getAllUsers();
+                std::cout << "\n--- Utilizatori (" << users.size() << ") ---\n";
+                for (const auto& [id, name] : users)
+                    std::cout << "  [" << id << "] " << name
+                              << (name == username ? " (tu)" : "") << "\n";
                 break;
             }
 

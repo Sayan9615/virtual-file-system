@@ -56,7 +56,8 @@ public:
     // Utilitare
     int getRootId();
     int getEntityId(const std::string& name, int parentId);
-    std::shared_ptr<Folder> buildTree(int folderId, Folder* parent = nullptr);
+    std::shared_ptr<Folder> buildTree(int folderId, Folder* parent = nullptr,
+                                      const std::string& username = "");
 
 private:
     Database& db;
@@ -64,4 +65,5 @@ private:
 
     bool savePermissions(int entityId, const PermissionManager& pm);
     PermissionManager loadPermissions(int entityId);
+    bool isSharedWith(int entityId, const std::string& username) const;
 };

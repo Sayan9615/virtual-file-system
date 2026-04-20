@@ -147,3 +147,20 @@ bool AuthService::isAuthenticated() const {
 User AuthService::getCurrentUser() const {
     return currentUser;
 }
+
+std::vector<std::pair<int, std::string>> AuthService::getAllUsers() const {
+    const char* sql = "SELECT id, username FROM users ORDER BY id;";
+    sqlite3_stmt* stmt = nullptr;
+    std::vector<std::pair<int, std::string>> users;
+
+    if (sqlite3_prepare_v2(database.getConnection(), sql, -1, &stmt, nullptr) != SQLITE_OK)
+        return users;
+
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        int id = sqlite3_column_int(stmt, 0);
+        const char* name = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
+        users.emplace_back(id, name ? name : "");
+    }
+    sqlite3_finalize(stmt);
+    return users;
+}
