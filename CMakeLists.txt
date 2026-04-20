@@ -12,8 +12,8 @@ set(CMAKE_AUTOUIC ON)
 
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
 
-# Forțează același runtime ca libsodium static
-set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+# Foloseste DLL runtime ca sa fie compatibil cu Qt6
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
 
 file(GLOB_RECURSE SOURCES "Program_source/*.cpp")
 set(SQLITE_SOURCE "Program_source/external/sqlite3.c")
