@@ -2,13 +2,22 @@
 #include "ISerializable.h"
 #include <string>
 #include <vector>
-#include "BaseUser.h"
 
-class Group : public iSerializable
-{
-   private:
-        std::string nume;
-        std::vector<BaseUser*> members;
-    public:
-        Group(std::string nume) : nume(nume){};
+class Group : public iSerializable {
+    std::string m_name;
+    std::vector<std::string> m_members;
+
+public:
+    Group() = default;
+    explicit Group(const std::string& name);
+
+    std::string getName() const { return m_name; }
+    const std::vector<std::string>& getMembers() const { return m_members; }
+
+    void addMember(const std::string& username);
+    void removeMember(const std::string& username);
+    bool isMember(const std::string& username) const;
+
+    std::string serialize() const override;
+    void deserialize(const std::string& data) override;
 };

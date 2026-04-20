@@ -1,5 +1,7 @@
 #pragma once
 #include <string>
+#include <vector>
+#include <utility>
 #include "Database.h"
 #include "User.h"
 #include "EventLog.h"
@@ -17,6 +19,8 @@ public:
 
     bool isAuthenticated() const;
     User getCurrentUser() const;
+
+    std::vector<std::pair<int, std::string>> getAllUsers() const;
 
 private:
     Database& database;

@@ -15,9 +15,13 @@ FileSystemEntity::FileSystemEntity(const std::string& name,
     m_permissions.addPermission(
         std::make_shared<OwnerPermission>(ownerUser, true, true)
     );
-    m_permissions.addPermission(
-        std::make_shared<GroupPermission>(ownerGroup, true, false)
-    );
+    {
+        Group g(ownerGroup);
+        g.addMember(ownerUser);
+        auto gp = std::make_shared<GroupPermission>(true, false);
+        gp->addGroup(g);
+        m_permissions.addPermission(gp);
+    }
 
     if (m_logger)
         EventLog(EventType::FILE_UPLOAD, ownerUser, "Entitate creata: " + name, *m_logger);

@@ -1,31 +1,29 @@
 #pragma once
 #include "Permission.h"
+#include "../users/Group.h"
 #include <vector>
 
-class GroupPermission : public Permission
-{
-    private:
-        std::string m_groupName;
-        std::vector<std::string> m_members;
+class GroupPermission : public Permission {
+    std::vector<Group> m_groups;
 
-    public:
-        GroupPermission(const std::string& groupName,bool canRead=true, bool canWrite=false);
-        GroupPermission(const GroupPermission& other);
-        GroupPermission(GroupPermission&& other)noexcept;
-        
-        GroupPermission& operator=(const GroupPermission& other);    
-        GroupPermission& operator=(GroupPermission&& other)noexcept;
+public:
+    GroupPermission(bool canRead = true, bool canWrite = false);
+    GroupPermission(const GroupPermission& other);
+    GroupPermission(GroupPermission&& other) noexcept;
 
-        std::string getGroupName() const{return this->m_groupName;}
-        std::vector<std::string> getMembers()const {return this->m_members;}
+    GroupPermission& operator=(const GroupPermission& other);
+    GroupPermission& operator=(GroupPermission&& other) noexcept;
 
-        void addMember(const std::string& username);
-        void removeMember(const std::string& username);
-        bool isMember(const std::string& username)const;
+    const std::vector<Group>& getGroups() const { return m_groups; }
 
-        bool check(const std::string& username,const std::string& operation) const override;
-        std::string getType() const override{return "GROUP";}
+    void addGroup(const Group& group);
+    void removeGroup(const std::string& groupName);
+    bool hasGroup(const std::string& groupName) const;
+    bool isMember(const std::string& username) const;
 
-        std::string serialize() const override;
-        void deserialize(const std::string & data) override;
-};  
+    bool check(const std::string& username, const std::string& operation) const override;
+    std::string getType() const override { return "GROUP"; }
+
+    std::string serialize() const override;
+    void deserialize(const std::string& data) override;
+};
