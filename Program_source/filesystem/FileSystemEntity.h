@@ -10,6 +10,7 @@
 
 class FileSystemEntity : public iSerializable, public iDisplayable {
 protected:
+    int m_id = 0;
     std::string m_name;
     std::string m_ownerUser;
     std::string m_ownerGroup;
@@ -30,6 +31,8 @@ public:
     virtual ~FileSystemEntity() = default;
 
     // Getteri
+    int getId() const { return m_id; }
+    void setId(int id) { m_id = id; }
     std::string getName() const { return m_name; }
     std::string getOwnerUser() const { return m_ownerUser; }
     std::string getOwnerGroup() const { return m_ownerGroup; }

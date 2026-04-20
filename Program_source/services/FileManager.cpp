@@ -94,7 +94,13 @@ bool FileManager::createTextFile(const std::string& name, const std::string& own
     // Salveaza permisiuni default
     PermissionManager pm;
     pm.addPermission(std::make_shared<OwnerPermission>(ownerUser, true, true));
-    pm.addPermission(std::make_shared<GroupPermission>(ownerGroup, true, false));
+    {
+        Group g(ownerGroup);
+        g.addMember(ownerUser);
+        auto gp = std::make_shared<GroupPermission>(true, false);
+        gp->addGroup(g);
+        pm.addPermission(gp);
+    }
     savePermissions(entityId, pm);
 
     EventLog(EventType::FILE_UPLOAD, ownerUser, "Fisier creat: " + name, logger);
@@ -122,7 +128,13 @@ bool FileManager::createFolder(const std::string& name, const std::string& owner
 
     PermissionManager pm;
     pm.addPermission(std::make_shared<OwnerPermission>(ownerUser, true, true));
-    pm.addPermission(std::make_shared<GroupPermission>(ownerGroup, true, false));
+    {
+        Group g(ownerGroup);
+        g.addMember(ownerUser);
+        auto gp = std::make_shared<GroupPermission>(true, false);
+        gp->addGroup(g);
+        pm.addPermission(gp);
+    }
     savePermissions(entityId, pm);
 
     EventLog(EventType::FILE_UPLOAD, ownerUser, "Folder creat: " + name, logger);
@@ -176,6 +188,7 @@ std::shared_ptr<TextFile> FileManager::getTextFile(int id) {
         group ? group : "",
         content ? content : ""
     );
+    file->setId(id);
 
     sqlite3_finalize(stmt);
     return file;
@@ -294,6 +307,28 @@ bool FileManager::checkPermission(int entityId, const std::string& username, con
     return pm.check(username, operation);
 }
 
+bool FileManager::addUserToGroup(int entityId, const std::string& username) {
+    PermissionManager pm = loadPermissions(entityId);
+    auto gp = pm.getGroupPermission();
+    if (!gp || gp->getGroups().empty()) return false;
+
+    auto newGp = std::make_shared<GroupPermission>(gp->canRead(), gp->canWrite());
+    for (const auto& oldGroup : gp->getGroups()) {
+        Group updated = oldGroup;
+        updated.addMember(username);
+        newGp->addGroup(updated);
+    }
+    pm.addPermission(newGp);
+    savePermissions(entityId, pm);
+    return true;
+}
+
+std::vector<Group> FileManager::getEntityGroups(int entityId) {
+    auto gp = loadPermissions(entityId).getGroupPermission();
+    if (!gp) return {};
+    return gp->getGroups();
+}
+
 bool FileManager::savePermissions(int entityId, const PermissionManager& pm) {
     // Sterge permisiunile vechi
     db.execute("DELETE FROM permissions WHERE entity_id = " + std::to_string(entityId) + ";");
@@ -315,15 +350,20 @@ bool FileManager::savePermissions(int entityId, const PermissionManager& pm) {
     // Salveaza group
     auto group = pm.getGroupPermission();
     if (group) {
-        std::string members = "";
-        for (const auto& m : group->getMembers()) members += m + ",";
+        const auto& groups = group->getGroups();
+        std::string serializedGroups;
+        for (size_t i = 0; i < groups.size(); ++i) {
+            if (i > 0) serializedGroups += ";";
+            serializedGroups += groups[i].serialize();
+        }
+        std::string firstGroupName = groups.empty() ? "" : groups[0].getName();
 
         const char* sql = "INSERT INTO permissions(entity_id, type, group_name, members, can_read, can_write) VALUES(?, 'GROUP', ?, ?, ?, ?);";
         sqlite3_stmt* stmt = nullptr;
         sqlite3_prepare_v2(db.getConnection(), sql, -1, &stmt, nullptr);
         sqlite3_bind_int(stmt, 1, entityId);
-        sqlite3_bind_text(stmt, 2, group->getGroupName().c_str(), -1, SQLITE_TRANSIENT);
-        sqlite3_bind_text(stmt, 3, members.c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_bind_text(stmt, 2, firstGroupName.c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_bind_text(stmt, 3, serializedGroups.c_str(), -1, SQLITE_TRANSIENT);
         sqlite3_bind_int(stmt, 4, group->canRead() ? 1 : 0);
         sqlite3_bind_int(stmt, 5, group->canWrite() ? 1 : 0);
         sqlite3_step(stmt);
@@ -364,17 +404,33 @@ PermissionManager FileManager::loadPermissions(int entityId) {
             const char* ownerUser = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
             pm.addPermission(std::make_shared<OwnerPermission>(ownerUser ? ownerUser : "", canRead, canWrite));
         } else if (typeStr == "GROUP") {
-            const char* groupName = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
-            const char* members = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3));
-            auto group = std::make_shared<GroupPermission>(groupName ? groupName : "", canRead, canWrite);
+            const char* groupNameRaw = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
+            const char* membersRaw   = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3));
+            auto gp = std::make_shared<GroupPermission>(canRead, canWrite);
 
-            if (members) {
-                std::istringstream ss(members);
+            std::string membersStr   = membersRaw   ? membersRaw   : "";
+            std::string groupNameStr = groupNameRaw ? groupNameRaw : "";
+
+            if (membersStr.find(':') != std::string::npos) {
+                // Format nou: "groupName:user1,user2;groupName2:user3"
+                std::istringstream ss(membersStr);
+                std::string groupData;
+                while (std::getline(ss, groupData, ';')) {
+                    if (groupData.empty()) continue;
+                    Group g;
+                    g.deserialize(groupData);
+                    gp->addGroup(g);
+                }
+            } else {
+                // Format vechi: lista plata de useri separati prin virgula
+                Group g(groupNameStr);
+                std::istringstream ss(membersStr);
                 std::string member;
                 while (std::getline(ss, member, ','))
-                    if (!member.empty()) group->addMember(member);
+                    if (!member.empty()) g.addMember(member);
+                gp->addGroup(g);
             }
-            pm.addPermission(group);
+            pm.addPermission(gp);
         } else if (typeStr == "OTHERS") {
             pm.addPermission(std::make_shared<OthersPermission>(canRead, canWrite));
         }
@@ -421,6 +477,7 @@ std::shared_ptr<Folder> FileManager::buildTree(int folderId, Folder* parent) {
     sqlite3_finalize(stmt);
 
     auto folder = std::make_shared<Folder>(name, owner, group, parent);
+    folder->setId(folderId);
 
     // citim copiii
     const char* childSql = "SELECT id, name, type, owner_user, owner_group FROM entities WHERE parent_id = ?;";
@@ -451,4 +508,47 @@ std::shared_ptr<Folder> FileManager::buildTree(int folderId, Folder* parent) {
     }
 
     return folder;
+}
+
+bool FileManager::createBinaryFile(const std::string& name, const std::string& ownerUser,
+                                    const std::string& ownerGroup, const std::string& extension,
+                                    int parentId) {
+    const char* sql = "INSERT INTO entities(name, type, owner_user, owner_group, parent_id, created_at, modified_at) "
+                      "VALUES(?, 'BINARY', ?, ?, ?, strftime('%s','now'), strftime('%s','now'));";
+    sqlite3_stmt* stmt = nullptr;
+
+    sqlite3_prepare_v2(db.getConnection(), sql, -1, &stmt, nullptr);
+    sqlite3_bind_text(stmt, 1, name.c_str(),      -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 2, ownerUser.c_str(),  -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 3, ownerGroup.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_int(stmt,  4, parentId);
+
+    bool success = (sqlite3_step(stmt) == SQLITE_DONE);
+    sqlite3_finalize(stmt);
+
+    if (!success) return false;
+
+    int entityId = sqlite3_last_insert_rowid(db.getConnection());
+
+    // Salveaza extensia in file_contents
+    const char* contentSql = "INSERT INTO file_contents(entity_id, extension, content, size) VALUES(?, ?, '', 0);";
+    sqlite3_prepare_v2(db.getConnection(), contentSql, -1, &stmt, nullptr);
+    sqlite3_bind_int(stmt,  1, entityId);
+    sqlite3_bind_text(stmt, 2, extension.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+
+    PermissionManager pm;
+    pm.addPermission(std::make_shared<OwnerPermission>(ownerUser, true, true));
+    {
+        Group g(ownerGroup);
+        g.addMember(ownerUser);
+        auto gp = std::make_shared<GroupPermission>(true, false);
+        gp->addGroup(g);
+        pm.addPermission(gp);
+    }
+    savePermissions(entityId, pm);
+
+    EventLog(EventType::FILE_UPLOAD, ownerUser, "BinaryFile creat: " + name + extension, logger);
+    return true;
 }

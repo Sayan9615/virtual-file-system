@@ -47,6 +47,7 @@ public:
     // Permisiuni
     bool addUserToGroup(int entityId, const std::string& username);
     bool checkPermission(int entityId, const std::string& username, const std::string& operation);
+    std::vector<Group> getEntityGroups(int entityId);
 
     // Share
     bool shareEntity(int entityId, const std::string& username);

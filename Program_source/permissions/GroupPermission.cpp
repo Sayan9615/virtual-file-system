@@ -3,112 +3,91 @@
 #include <sstream>
 #include <algorithm>
 
-GroupPermission::GroupPermission(const std::string &groupName, bool canRead, bool canWrite)
-:Permission(canRead,canWrite),m_groupName(groupName)
-{
-}
+GroupPermission::GroupPermission(bool canRead, bool canWrite)
+    : Permission(canRead, canWrite) {}
 
-GroupPermission::GroupPermission(const GroupPermission &other)
-:Permission(other),m_groupName(other.m_groupName),m_members(other.m_members)
-{
-}
+GroupPermission::GroupPermission(const GroupPermission& other)
+    : Permission(other), m_groups(other.m_groups) {}
 
-GroupPermission::GroupPermission(GroupPermission &&other) noexcept
-:Permission(std::move(other)),m_groupName(std::move(other.m_groupName)),m_members(std::move(other.m_members))
-{
-}
+GroupPermission::GroupPermission(GroupPermission&& other) noexcept
+    : Permission(std::move(other)), m_groups(std::move(other.m_groups)) {}
 
-GroupPermission &GroupPermission::operator=(const GroupPermission &other)
-{
-    if(this!=&other)
-    {
+GroupPermission& GroupPermission::operator=(const GroupPermission& other) {
+    if (this != &other) {
         Permission::operator=(other);
-        this->m_groupName=other.m_groupName;
-        this->m_members=other.m_members;
+        m_groups = other.m_groups;
     }
     return *this;
 }
 
-GroupPermission &GroupPermission::operator=(GroupPermission &&other) noexcept
-{
-     if(this!=&other)
-    {
+GroupPermission& GroupPermission::operator=(GroupPermission&& other) noexcept {
+    if (this != &other) {
         Permission::operator=(std::move(other));
-        this->m_groupName=std::move(other.m_groupName);
-        this->m_members=std::move(other.m_members);
+        m_groups = std::move(other.m_groups);
     }
     return *this;
 }
 
-void GroupPermission::addMember(const std::string &username)
-{
-    if(!this->isMember(username))
-        this->m_members.push_back(username);
+void GroupPermission::addGroup(const Group& group) {
+    if (!hasGroup(group.getName()))
+        m_groups.push_back(group);
 }
 
-void GroupPermission::removeMember(const std::string &username)
-{
-    auto it=std::find(this->m_members.begin(),this->m_members.end(),username);
-    if(it==this->m_members.end())
-        throw PermissionException(username+" nu este membru al grupului "+this->m_groupName);
-
-    this->m_members.erase(it);
+void GroupPermission::removeGroup(const std::string& groupName) {
+    m_groups.erase(
+        std::remove_if(m_groups.begin(), m_groups.end(),
+            [&groupName](const Group& g) { return g.getName() == groupName; }),
+        m_groups.end()
+    );
 }
 
-bool GroupPermission::isMember(const std::string &username) const
-{
-    return std::find(this->m_members.begin(),this->m_members.end(),username)!=this->m_members.end();
+bool GroupPermission::hasGroup(const std::string& groupName) const {
+    return std::any_of(m_groups.begin(), m_groups.end(),
+        [&groupName](const Group& g) { return g.getName() == groupName; });
 }
 
-bool GroupPermission::check(const std::string &username, const std::string &operation) const
-{
-    if(!this->isMember(username))
-        return false;
-   if(operation=="read") 
-        return this->m_canRead;
-   if(operation=="write") 
-        return this->m_canWrite;   
-   
-    throw PermissionException("Operatie necunoscuta: "+operation);
+bool GroupPermission::isMember(const std::string& username) const {
+    return std::any_of(m_groups.begin(), m_groups.end(),
+        [&username](const Group& g) { return g.isMember(username); });
 }
 
-std::string GroupPermission::serialize() const
-{
-   std::ostringstream oss;
-   oss<<Permission::serialize()<<"|"<<this->m_groupName<<"|";
+bool GroupPermission::check(const std::string& username, const std::string& operation) const {
+    if (!isMember(username)) return false;
+    if (operation == "read")  return m_canRead;
+    if (operation == "write") return m_canWrite;
+    throw PermissionException("Operatie necunoscuta: " + operation);
+}
 
-    for(int i =0;i<(int)this->m_members.size();i++)
-    {
-        oss<<this->m_members[i];
-        if(i<(int)this->m_members.size()-1)
-            oss<<",";
+// Format: "groupName1:user1,user2|groupName2:user3"
+std::string GroupPermission::serialize() const {
+    std::ostringstream oss;
+    oss << m_canRead << "|" << m_canWrite << "|";
+    for (size_t i = 0; i < m_groups.size(); ++i) {
+        if (i > 0) oss << ";";
+        oss << m_groups[i].serialize();
     }
     return oss.str();
 }
 
-void GroupPermission::deserialize(const std::string &data)
-{
+void GroupPermission::deserialize(const std::string& data) {
+    // Format: "canRead|canWrite|group1:u1,u2;group2:u3"
     std::istringstream iss(data);
     std::string token;
     std::vector<std::string> tokens;
+    while (std::getline(iss, token, '|'))
+        tokens.push_back(token);
 
-    while(std::getline(iss,token,'|'))
-         tokens.push_back(token);
-    
-    if(tokens.size()<4)
-        throw PermissionException("Date invalide OwnerPermission!");
-    
-    this->m_canRead=tokens[1]=="1";
-    this->m_canWrite=tokens[2]=="1";    
-    this->m_groupName=tokens[3];
+    if (tokens.size() < 3) return;
 
-    if(tokens.size()>4 && !tokens[4].empty())
-    {
-        std::istringstream memberStream(tokens[4]);
-        std::string member;
+    m_canRead  = tokens[0] == "1";
+    m_canWrite = tokens[1] == "1";
 
-        while(std::getline(memberStream,member,','))
-         this->m_members.push_back(member);
-
+    std::istringstream groupStream(tokens[2]);
+    std::string groupData;
+    while (std::getline(groupStream, groupData, ';')) {
+        if (groupData.empty()) continue;
+        Group g;
+        g.deserialize(groupData);
+        m_groups.push_back(g);
     }
 }

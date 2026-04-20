@@ -13,7 +13,8 @@ bool AuthService::initializeDatabase() {
         "CREATE TABLE IF NOT EXISTS users ("
         "id INTEGER PRIMARY KEY AUTOINCREMENT, "
         "username TEXT NOT NULL UNIQUE, "
-        "password_hash TEXT NOT NULL"
+        "password_hash TEXT NOT NULL, "
+        "role TEXT NOT NULL DEFAULT 'user'"
         ");";
     return database.execute(sql);
 }
@@ -73,12 +74,12 @@ bool AuthService::getUserByUsername(const std::string& username, User& user, std
 
 bool AuthService::registerUser(const std::string& username, const std::string& password) {
     if (!isValidUsername(username) || !isValidPassword(password)) {
-        EventLog(EventType::REGISTER, username, "Inregistrare esuata: date invalide", logger);
+        std::cerr << "Date invalide: user=" << username << " pass_len=" << password.length() << "\n";
         return false;
     }
 
     if (userExists(username)) {
-        EventLog(EventType::REGISTER, username, "Inregistrare esuata: userul exista deja", logger);
+        std::cerr << "Userul exista deja!\n";
         return false;
     }
 
@@ -86,21 +87,26 @@ bool AuthService::registerUser(const std::string& username, const std::string& p
     try {
         passwordHash = PasswordHasher::hashPassword(password);
     } catch (const std::exception& ex) {
-        EventLog(EventType::REGISTER, username, std::string("Eroare la hash: ") + ex.what(), logger);
+        std::cerr << "Eroare hash: " << ex.what() << "\n";
         return false;
     }
 
-    const char* sql = "INSERT INTO users(username, password_hash) VALUES(?, ?);";
+    const char* sql = "INSERT INTO users(username, password_hash, role) VALUES(?, ?, 'user');";
     sqlite3_stmt* stmt = nullptr;
 
     if (sqlite3_prepare_v2(database.getConnection(), sql, -1, &stmt, nullptr) != SQLITE_OK) {
+        std::cerr << "Eroare prepare INSERT: " << sqlite3_errmsg(database.getConnection()) << "\n";
         return false;
     }
 
     sqlite3_bind_text(stmt, 1, username.c_str(), -1, SQLITE_TRANSIENT);
     sqlite3_bind_text(stmt, 2, passwordHash.c_str(), -1, SQLITE_TRANSIENT);
 
-    bool success = (sqlite3_step(stmt) == SQLITE_DONE);
+    int stepResult = sqlite3_step(stmt);
+    if (stepResult != SQLITE_DONE) {
+        std::cerr << "Eroare INSERT users: " << sqlite3_errmsg(database.getConnection()) << " (code " << stepResult << ")\n";
+    }
+    bool success = (stepResult == SQLITE_DONE);
     sqlite3_finalize(stmt);
 
     if (success) {
