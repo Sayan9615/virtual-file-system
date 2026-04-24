@@ -10,8 +10,8 @@
 
             //sterg toate logurile
             virtual void clear()=0;
+            
+            virtual void exportLogs(const std::string& path) const = 0;
 
-            //export log urile intr un fisier
-            virtual void exportLogs(const std::string& path) const =0;
-
+            virtual void log_timed(const std::string& event) = 0;
     };
