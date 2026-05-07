@@ -28,17 +28,20 @@ bool AuthService::isValidPassword(const std::string& password) {
 }
 
 bool AuthService::userExists(const std::string& username) {
-    const char* sql = "SELECT 1 FROM users WHERE username = ? LIMIT 1;";
+    const char* sql = "SELECT 1 FROM users WHERE username = ?;";
     sqlite3_stmt* stmt = nullptr;
 
     if (sqlite3_prepare_v2(database.getConnection(), sql, -1, &stmt, nullptr) != SQLITE_OK) {
-        std::cerr << "Eroare la prepare in userExists: "
-                  << sqlite3_errmsg(database.getConnection()) << '\n';
+        //adauga exceptie
         return false;
     }
 
     sqlite3_bind_text(stmt, 1, username.c_str(), -1, SQLITE_TRANSIENT);
-    bool exists = (sqlite3_step(stmt) == SQLITE_ROW);
+    bool exists;
+    if(sqlite3_step(stmt) == SQLITE_ROW){
+        exists = true;
+    }
+    else exists = false;
     sqlite3_finalize(stmt);
     return exists;
 }
@@ -48,8 +51,7 @@ bool AuthService::getUserByUsername(const std::string& username, User& user, std
     sqlite3_stmt* stmt = nullptr;
 
     if (sqlite3_prepare_v2(database.getConnection(), sql, -1, &stmt, nullptr) != SQLITE_OK) {
-        std::cerr << "Eroare la prepare in getUserByUsername: "
-                  << sqlite3_errmsg(database.getConnection()) << '\n';
+        //Adauga exceptie
         return false;
     }
 
@@ -60,8 +62,16 @@ bool AuthService::getUserByUsername(const std::string& username, User& user, std
         const char* usernameText = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
         const char* passwordHashText = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
 
-        std::string dbUsername = usernameText ? usernameText : "";
-        passwordHash = passwordHashText ? passwordHashText : "";
+        std::string dbUsername;
+        passwordHash;
+
+        if(usernameText){
+            dbUsername = usernameText;
+        }else dbUsername = "";
+
+        if(passwordHashText){
+            passwordHash = passwordHashText;
+        }else passwordHash = "";
 
         user = User(id, dbUsername);
         sqlite3_finalize(stmt);
@@ -74,12 +84,12 @@ bool AuthService::getUserByUsername(const std::string& username, User& user, std
 
 bool AuthService::registerUser(const std::string& username, const std::string& password) {
     if (!isValidUsername(username) || !isValidPassword(password)) {
-        std::cerr << "Date invalide: user=" << username << " pass_len=" << password.length() << "\n";
+        //Adauga eroare aici
         return false;
     }
 
     if (userExists(username)) {
-        std::cerr << "Userul exista deja!\n";
+        //Adauga eroare aici
         return false;
     }
 
@@ -87,7 +97,7 @@ bool AuthService::registerUser(const std::string& username, const std::string& p
     try {
         passwordHash = PasswordHasher::hashPassword(password);
     } catch (const std::exception& ex) {
-        std::cerr << "Eroare hash: " << ex.what() << "\n";
+        //Adauga eroare aici
         return false;
     }
 
@@ -95,7 +105,7 @@ bool AuthService::registerUser(const std::string& username, const std::string& p
     sqlite3_stmt* stmt = nullptr;
 
     if (sqlite3_prepare_v2(database.getConnection(), sql, -1, &stmt, nullptr) != SQLITE_OK) {
-        std::cerr << "Eroare prepare INSERT: " << sqlite3_errmsg(database.getConnection()) << "\n";
+        //Adauga eroare aici
         return false;
     }
 
@@ -104,9 +114,13 @@ bool AuthService::registerUser(const std::string& username, const std::string& p
 
     int stepResult = sqlite3_step(stmt);
     if (stepResult != SQLITE_DONE) {
-        std::cerr << "Eroare INSERT users: " << sqlite3_errmsg(database.getConnection()) << " (code " << stepResult << ")\n";
+        //Adauga eroare
     }
-    bool success = (stepResult == SQLITE_DONE);
+    bool success;
+    if(stepResult == SQLITE_DONE){
+        success = true;
+    } else success = false;
+    
     sqlite3_finalize(stmt);
 
     if (success) {
