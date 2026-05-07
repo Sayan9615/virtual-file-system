@@ -3,13 +3,20 @@
 #include <QLineEdit>
 #include <QLabel>
 #include <QPushButton>
+#include <QVBoxLayout>
+#include <QHBoxLayout>
+#include <QFormLayout>
 #include "../services/AuthService.h"
+#include "../exceptions/AuthException.h"
+#include "../exceptions/AppException.h"
 
 class LoginDialog : public QDialog {
     Q_OBJECT
 
 public:
     explicit LoginDialog(AuthService& auth, QWidget* parent = nullptr);
+
+    // returneaza username-ul dupa login reusit
     QString getUsername() const;
 
 private slots:
@@ -17,10 +24,19 @@ private slots:
     void onRegister();
 
 private:
-    AuthService& m_auth;
+    // ── Helper ───────────────────────────────────────
+    void resetStyles();
+    void showError(const QString& message);
+    void showSuccess(const QString& message);
 
+    // ── Date ─────────────────────────────────────────
+    AuthService& m_auth;
+    QString      m_loggedUsername;
+
+    // ── UI ───────────────────────────────────────────
     QLineEdit* m_usernameEdit;
     QLineEdit* m_passwordEdit;
     QLabel*    m_errorLabel;
-    QString    m_loggedUsername;
+    QPushButton* m_loginBtn;
+    QPushButton* m_registerBtn;
 };

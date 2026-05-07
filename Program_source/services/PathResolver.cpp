@@ -51,19 +51,28 @@ PathResolver &PathResolver::operator=(PathResolver &&other) noexcept
 
 std::shared_ptr<FileSystemEntity> PathResolver::resolvePath(const std::string &path) const
 {
-    if(path.empty() || path=="/")
+    if(path.empty() || path == "/")
         return this->m_root;
 
-    auto tokens=splitPath(path);
-    std::shared_ptr<FileSystemEntity> current=this->m_root;
-    
-    for(const auto& token:tokens)
+    auto tokens = splitPath(path);
+
+
+    size_t startIndex = 0;
+    if (!tokens.empty() && tokens[0] == m_root->getName()) {
+        if (tokens.size() == 1)
+            return this->m_root;
+        startIndex = 1;
+    }
+
+    std::shared_ptr<FileSystemEntity> current = this->m_root;
+
+    for(size_t i = startIndex; i < tokens.size(); ++i)
     {
-        auto* folder =dynamic_cast<Folder*>(current.get());
+        auto* folder = dynamic_cast<Folder*>(current.get());
         if(!folder)
             throw FileNotFoundException(path);
-         
-        current=folder->findChild(token);    
+
+        current = folder->findChild(tokens[i]);
     }
 
     return current;
