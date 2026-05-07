@@ -3,6 +3,8 @@
 #include "EventLog.h"
 #include <sqlite3.h>
 #include <iostream>
+#include "../exceptions/DbException.h"
+#include "../exceptions/AuthException.h"
 
 AuthService::AuthService(Database& database, iLogger& logger)
     : database(database), logger(logger), currentUser() {
@@ -32,8 +34,7 @@ bool AuthService::userExists(const std::string& username) {
     sqlite3_stmt* stmt = nullptr;
 
     if (sqlite3_prepare_v2(database.getConnection(), sql, -1, &stmt, nullptr) != SQLITE_OK) {
-        //adauga exceptie
-        return false;
+        throw(DbException(sqlite3_errmsg(database.getConnection())));
     }
 
     sqlite3_bind_text(stmt, 1, username.c_str(), -1, SQLITE_TRANSIENT);
@@ -51,8 +52,7 @@ bool AuthService::getUserByUsername(const std::string& username, User& user, std
     sqlite3_stmt* stmt = nullptr;
 
     if (sqlite3_prepare_v2(database.getConnection(), sql, -1, &stmt, nullptr) != SQLITE_OK) {
-        //Adauga exceptie
-        return false;
+        throw(DbException(sqlite3_errmsg(database.getConnection())));
     }
 
     sqlite3_bind_text(stmt, 1, username.c_str(), -1, SQLITE_TRANSIENT);
@@ -84,29 +84,25 @@ bool AuthService::getUserByUsername(const std::string& username, User& user, std
 
 bool AuthService::registerUser(const std::string& username, const std::string& password) {
     if (!isValidUsername(username) || !isValidPassword(password)) {
-        //Adauga eroare aici
-        return false;
+        throw(AuthException("Username sau parola invalide"));
     }
 
     if (userExists(username)) {
-        //Adauga eroare aici
-        return false;
+        throw(AuthException("Username-ul introdus exista deja"));
     }
 
     std::string passwordHash;
     try {
         passwordHash = PasswordHasher::hashPassword(password);
     } catch (const std::exception& ex) {
-        //Adauga eroare aici
-        return false;
+        throw(DbException("Eroare hash parola"));
     }
 
     const char* sql = "INSERT INTO users(username, password_hash, role) VALUES(?, ?, 'user');";
     sqlite3_stmt* stmt = nullptr;
 
     if (sqlite3_prepare_v2(database.getConnection(), sql, -1, &stmt, nullptr) != SQLITE_OK) {
-        //Adauga eroare aici
-        return false;
+        throw(DbException(sqlite3_errmsg(database.getConnection())));
     }
 
     sqlite3_bind_text(stmt, 1, username.c_str(), -1, SQLITE_TRANSIENT);
@@ -114,20 +110,13 @@ bool AuthService::registerUser(const std::string& username, const std::string& p
 
     int stepResult = sqlite3_step(stmt);
     if (stepResult != SQLITE_DONE) {
-        //Adauga eroare
+        sqlite3_finalize(stmt);
+        throw(DbException(sqlite3_errmsg(database.getConnection())));
     }
-    bool success;
-    if(stepResult == SQLITE_DONE){
-        success = true;
-    } else success = false;
-    
+        
     sqlite3_finalize(stmt);
-
-    if (success) {
-        EventLog(EventType::REGISTER, username, "Utilizator inregistrat cu succes", logger);
-    }
-
-    return success;
+    EventLog(EventType::REGISTER, username, "Utilizator inregistrat cu succes", logger);
+    return true;
 }
 
 bool AuthService::login(const std::string& username, const std::string& password) {
@@ -136,12 +125,12 @@ bool AuthService::login(const std::string& username, const std::string& password
 
     if (!getUserByUsername(username, user, storedHash)) {
         EventLog(EventType::LOGIN, username, "Login esuat: userul nu exista", logger);
-        return false;
+        throw(AuthException("Login esuat: userul nu exista"));
     }
 
     if (!PasswordHasher::verifyPassword(password, storedHash)) {
         EventLog(EventType::LOGIN, username, "Login esuat: parola incorecta", logger);
-        return false;
+        throw(AuthException("Login esuat: parola incorecta"));
     }
 
     currentUser = user;

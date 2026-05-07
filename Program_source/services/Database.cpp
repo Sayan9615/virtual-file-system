@@ -1,4 +1,5 @@
     #include "Database.h"
+    
     #include <iostream>
 
     Database::Database() : db(nullptr) {}
