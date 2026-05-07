@@ -19,6 +19,7 @@
 #include "../services/SearchEngine.h"
 #include "../services/PathResolver.h"
 #include "../services/SortManager.h"
+#include "../services/FileManager.h"
 #include "../logger/TimestampedLogger.h"
 #include "FileSystemModel.h"
 
@@ -26,17 +27,16 @@ class MainWindow : public QMainWindow {
     Q_OBJECT
 
 protected:
-    void closeEvent(QCloseEvent *event) override;
+    void closeEvent(QCloseEvent* event) override;
 
 public:
     explicit MainWindow(Folder* root,
                         const std::string& username,
+                        FileManager& fm,
                         QWidget* parent = nullptr);
 
 private slots:
     void onOpenExternal();
-
-
     void onItemSelected(const QModelIndex& index);
     void onAddressBarEntered();
     void onSearchTriggered();
@@ -45,7 +45,6 @@ private slots:
     void onNewFolder();
     void onRename();
     void onDelete();
-
     void onSortByName();
     void onSortBySize();
     void onSortByDate();
@@ -65,13 +64,14 @@ private:
     // ── Date ─────────────────────────────────────────
     Folder*      m_root;
     std::string  m_currentUser;
+    FileManager& m_fm;
 
     // ── Servicii ─────────────────────────────────────
     FileSystemModel*          m_model;
     SearchEngine              m_searchEngine;
     PathResolver*             m_pathResolver;
     TimestampedLogger*        m_logger;
-    SortManager::SortCrit m_currentSort;
+    SortManager::SortCrit     m_currentSort;
 
     // ── UI ───────────────────────────────────────────
     QTreeView*   m_treeView;

@@ -163,3 +163,8 @@ Folder* FileSystemModel::findParent(Folder* current, FileSystemEntity* target) c
     }
     return nullptr;
 }
+
+void FileSystemModel::refresh() {
+    beginResetModel();
+    endResetModel();
+}
