@@ -1,6 +1,5 @@
 #include <QApplication>
 #include <QMessageBox>
-#include <iostream>
 #include "services/Database.h"
 #include "services/FileManager.h"
 #include "services/AuthService.h"
@@ -44,9 +43,7 @@ int main(int argc, char* argv[]) {
     }
 
     LoginDialog loginDialog(auth);
-    if (loginDialog.exec() != QDialog::Accepted) {
-        return 0;
-    }
+    if (loginDialog.exec() != QDialog::Accepted) return 0;
 
     std::string username = loginDialog.getUsername().toStdString();
 
@@ -65,17 +62,17 @@ int main(int argc, char* argv[]) {
         int imgsId = fm.getEntityId("Images",    1);
 
         fm.createTextFile("readme",  username, "users",
-                          "Hello ATMosFS! Acesta e un fisier de test.", docsId);
+                          "Hello ATMosFS!", docsId);
         fm.createTextFile("notes",   username, "users",
-                          "Note importante despre proiect.", docsId);
-        fm.createBinaryFile("photo", username, "users", ".jpg", imgsId);
-        fm.createBinaryFile("backup",username, "users", ".bin", docsId);
+                          "Note importante.", docsId);
+        fm.createBinaryFile("photo", username, "users",
+                            ".jpg", imgsId);
 
         root = fm.buildTree(fm.getRootId(), nullptr, username);
     }
 
-    // ── MODIFICAT — pasam si fm ───────────────────────
-    MainWindow mainWindow(root.get(), username, fm);
+    // ── pasat si auth pentru lista useri la partajare ──
+    MainWindow mainWindow(root.get(), username, fm, auth);
     mainWindow.show();
 
     return app.exec();

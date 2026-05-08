@@ -22,6 +22,12 @@ public:
 
     std::vector<std::pair<int, std::string>> getAllUsers() const;
 
+    bool createGroup(const std::string& groupName);
+    bool addUserToGroup(const std::string& groupName, const std::string& username);
+    bool removeUserFromGroup(const std::string& groupName, const std::string& username); // FIX: ADAUGAT AICI
+    std::vector<std::string> getAllGroups() const;
+    std::vector<std::string> getUsersInGroup(const std::string& groupName) const;
+
 private:
     Database& database;
     iLogger& logger;

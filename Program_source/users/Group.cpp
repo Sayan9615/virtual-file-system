@@ -13,7 +13,7 @@ void Group::removeMember(const std::string& username) {
     m_members.erase(
         std::remove(m_members.begin(), m_members.end(), username),
         m_members.end()
-    );
+        );
 }
 
 bool Group::isMember(const std::string& username) const {
@@ -32,13 +32,23 @@ std::string Group::serialize() const {
 }
 
 void Group::deserialize(const std::string& data) {
+    m_members.clear(); // FIX: Curatam membrii existenti inainte de a citi altii
     auto sep = data.find(':');
+
+    // FIX: Daca nu exista ':', inseamna ca avem doar numele grupului, fara membri
+    if (sep == std::string::npos) {
+        m_name = data;
+        return;
+    }
+
     m_name = data.substr(0, sep);
-    if (sep == std::string::npos || sep + 1 >= data.size()) return;
+    if (sep + 1 >= data.size()) return;
 
     std::istringstream ss(data.substr(sep + 1));
     std::string member;
-    while (std::getline(ss, member, ','))
-        if (!member.empty())
+    while (std::getline(ss, member, ',')) {
+        if (!member.empty()) {
             m_members.push_back(member);
+        }
+    }
 }

@@ -20,7 +20,7 @@ protected:
     iLogger* m_logger = nullptr;
 
 public:
-    FileSystemEntity(const std::string& name, const std::string& ownerUser, 
+    FileSystemEntity(const std::string& name, const std::string& ownerUser,
                      const std::string& ownerGroup, iLogger* logger = nullptr);
     FileSystemEntity(const FileSystemEntity& other);
     FileSystemEntity(FileSystemEntity&& other) noexcept;
@@ -47,6 +47,10 @@ public:
     void setName(const std::string& name);
     void setOwnerUser(const std::string& user);
     void setOwnerGroup(const std::string& group);
+
+    // FIX: Setteri pentru a pastra data originala la incarcarea din baza de date
+    void setCreatedAt(std::time_t t) { m_createdAt = t; }
+    void setModifiedAt(std::time_t t) { m_modifiedAt = t; }
 
     virtual std::size_t getSize() const = 0;
     virtual bool isFolder() const = 0;

@@ -6,19 +6,19 @@
 #include <numeric>
 
 Folder::Folder(const std::string &name, const std::string &ownerUser, const std::string &ownerGroup, Folder *parent)
-:FileSystemEntity(name,ownerUser,ownerGroup),m_index(3),m_parent(parent)
+    :FileSystemEntity(name,ownerUser,ownerGroup),m_index(3),m_parent(parent)
 {
 }
 
 Folder::Folder(const Folder &other)
-:FileSystemEntity(other),m_children(other.m_children),m_index(3),m_parent(other.m_parent)
+    :FileSystemEntity(other),m_children(other.m_children),m_index(3),m_parent(other.m_parent)
 {
     for(auto& child:this->m_children)
-       this->m_index.insert(child->getName(),child); 
+        this->m_index.insert(child->getName(),child);
 }
 
 Folder::Folder(Folder &&other) noexcept
-:FileSystemEntity(std::move(other)),m_children(std::move(other.m_children)),m_index(std::move(other.m_index)),m_parent(std::move(other.m_parent))
+    :FileSystemEntity(std::move(other)),m_children(std::move(other.m_children)),m_index(std::move(other.m_index)),m_parent(std::move(other.m_parent))
 {
     other.m_parent=nullptr;
 }
@@ -57,20 +57,19 @@ void Folder::addChild(std::shared_ptr<FileSystemEntity> entity)
 {
     if(!entity)
         throw FileSystemException("Nu pot adauga ceva ce e null in folder!");
-    
+
     if(hasChild(entity->getName()))
         throw FileSystemException("Exista deja un fisier/folder cu numele: "+entity->getName());
-        
+
     this->m_children.push_back(entity);
     this->m_index.insert(entity->getName(),entity);
     this->m_modifiedAt=std::time(nullptr);
-
 }
 
 void Folder::removeChild(const std::string &name)
 {
-   for(int i = 0 ;i<(int)this->m_children.size();i++)
-   {
+    for(int i = 0 ;i<(int)this->m_children.size();i++)
+    {
         if(this->m_children[i]->getName()==name)
         {
             this->m_children.erase(this->m_children.begin()+i);
@@ -79,21 +78,16 @@ void Folder::removeChild(const std::string &name)
             this->m_modifiedAt=std::time(nullptr);
             return;
         }
-        
-   }
-
-   throw FileNotFoundException(this->getAbsolutePath()+"/"+name);
-
+    }
+    throw FileNotFoundException(this->getAbsolutePath()+"/"+name);
 }
 
 std::shared_ptr<FileSystemEntity> Folder::findChild(const std::string &name) const
 {
-    //B+Tree (log n)
     auto result=this->m_index.search(name);
-
     if(result.has_value())
         return result.value();
-   throw FileNotFoundException(this->getAbsolutePath()+"/"+name);     
+    throw FileNotFoundException(this->getAbsolutePath()+"/"+name);
 }
 
 bool Folder::hasChild(const std::string &name) const
@@ -101,22 +95,21 @@ bool Folder::hasChild(const std::string &name) const
     return this->m_index.search(name).has_value();
 }
 
-std::string Folder::getAbsolutePath() const // recursiv e  mai usor
+std::string Folder::getAbsolutePath() const
 {
     if(this->m_parent==nullptr)
         return "/"+this->m_name;
 
-   return this->m_parent->getAbsolutePath()+"/"+this->m_name;    
+    return this->m_parent->getAbsolutePath()+"/"+this->m_name;
 }
 
 std::size_t Folder::getSize() const
 {
     std::size_t total=0;
-
     for(const auto& child:this->m_children)
         total+=child->getSize();
-    
-   return total;     
+
+    return total;
 }
 
 void Folder::display() const
@@ -128,7 +121,6 @@ void Folder::display() const
         std::cout<<" ";
         child->display();
     }
-
 }
 
 std::string Folder::getIcon() const
@@ -144,17 +136,15 @@ std::vector<std::string> Folder::search(const std::string &text) const
     {
         if(child->getName().find(text)!=std::string::npos)
             results.push_back(this->getAbsolutePath()+"/"+child->getName());
-    
-        //caut si in copil daca permite
+
         auto * searchable=dynamic_cast<iSearchable*>(child.get());
         if(searchable)
         {
             auto result2=searchable->search(text);
             results.insert(results.end(),result2.begin(),result2.end());
-        }    
+        }
     }
     return results;
-
 }
 
 bool Folder::contains(const std::string &data) const
@@ -164,10 +154,8 @@ bool Folder::contains(const std::string &data) const
 
 std::string Folder::serialize() const
 {
-    //doar elementele folderului
     std::ostringstream oss;
     oss<<FileSystemEntity::serialize()<<"|"<<this->m_children.size();
-
     return oss.str();
 }
 
@@ -179,16 +167,16 @@ void Folder::deserialize(const std::string &data)
 
     while(std::getline(iss,token,'|'))
         tokens.push_back(token);
-    
+
     if(tokens.size()<6)
         throw FileSystemException("Date invalide pentru folder!");
-    
+
     std::string baseData;
     for(int i = 0 ;i<5;i++)
     {
         baseData+=tokens[i];
         if(i<4)
-          baseData+="|";
+            baseData+="|";
     }
     FileSystemEntity::deserialize(baseData);
 }
@@ -211,6 +199,20 @@ std::shared_ptr<FileSystemEntity> Folder::operator[](const std::string &name) co
 std::ostream &operator<<(std::ostream &os, const Folder &folder)
 {
     os<<"[DIR]"<<folder.m_name<<" ("<<folder.m_children.size()<<" elemente)";
-
     return os;
+}
+
+// NOU: Aplicam sortarea pe toti copiii si folderele din interior
+void Folder::sortChildrenRecursive(SortManager::SortCrit crit)
+{
+    this->m_children = SortManager::sort(this->m_children, crit);
+    for(auto& child : this->m_children)
+    {
+        if(child->isFolder())
+        {
+            auto folder = std::dynamic_pointer_cast<Folder>(child);
+            if(folder)
+                folder->sortChildrenRecursive(crit);
+        }
+    }
 }

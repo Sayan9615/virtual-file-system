@@ -15,6 +15,11 @@ bool AuthService::initializeDatabase() {
         "username TEXT NOT NULL UNIQUE, "
         "password_hash TEXT NOT NULL, "
         "role TEXT NOT NULL DEFAULT 'user'"
+        ");"
+        "CREATE TABLE IF NOT EXISTS user_groups ("
+        "group_name TEXT NOT NULL, "
+        "username TEXT NOT NULL, "
+        "PRIMARY KEY(group_name, username)"
         ");";
     return database.execute(sql);
 }
@@ -160,6 +165,69 @@ std::vector<std::pair<int, std::string>> AuthService::getAllUsers() const {
         int id = sqlite3_column_int(stmt, 0);
         const char* name = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
         users.emplace_back(id, name ? name : "");
+    }
+    sqlite3_finalize(stmt);
+    return users;
+}
+
+bool AuthService::createGroup(const std::string& groupName) {
+    if (groupName.empty()) return false;
+    const char* sql = "INSERT OR IGNORE INTO user_groups(group_name, username) VALUES(?, '__init__');";
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(database.getConnection(), sql, -1, &stmt, nullptr) != SQLITE_OK) return false;
+    sqlite3_bind_text(stmt, 1, groupName.c_str(), -1, SQLITE_TRANSIENT);
+    bool success = (sqlite3_step(stmt) == SQLITE_DONE);
+    sqlite3_finalize(stmt);
+    return success;
+}
+
+bool AuthService::addUserToGroup(const std::string& groupName, const std::string& username) {
+    const char* sql = "INSERT OR IGNORE INTO user_groups(group_name, username) VALUES(?, ?);";
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(database.getConnection(), sql, -1, &stmt, nullptr) != SQLITE_OK) return false;
+    sqlite3_bind_text(stmt, 1, groupName.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 2, username.c_str(), -1, SQLITE_TRANSIENT);
+    bool success = (sqlite3_step(stmt) == SQLITE_DONE);
+    sqlite3_finalize(stmt);
+    return success;
+}
+
+// FIX: AICI AM ADAUGAT STERGEREA REALA DIN BAZA DE DATE A GRUPULUI
+bool AuthService::removeUserFromGroup(const std::string& groupName, const std::string& username) {
+    const char* sql = "DELETE FROM user_groups WHERE group_name = ? AND username = ?;";
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(database.getConnection(), sql, -1, &stmt, nullptr) != SQLITE_OK) return false;
+    sqlite3_bind_text(stmt, 1, groupName.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 2, username.c_str(), -1, SQLITE_TRANSIENT);
+    bool success = (sqlite3_step(stmt) == SQLITE_DONE);
+    sqlite3_finalize(stmt);
+    return success;
+}
+
+std::vector<std::string> AuthService::getAllGroups() const {
+    const char* sql = "SELECT DISTINCT group_name FROM user_groups;";
+    sqlite3_stmt* stmt = nullptr;
+    std::vector<std::string> groups;
+    if (sqlite3_prepare_v2(database.getConnection(), sql, -1, &stmt, nullptr) == SQLITE_OK) {
+        while (sqlite3_step(stmt) == SQLITE_ROW) {
+            const char* name = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
+            if (name) groups.emplace_back(name);
+        }
+    }
+    sqlite3_finalize(stmt);
+    return groups;
+}
+
+std::vector<std::string> AuthService::getUsersInGroup(const std::string& groupName) const {
+    const char* sql = "SELECT username FROM user_groups WHERE group_name = ? AND username != '__init__';";
+    sqlite3_stmt* stmt = nullptr;
+    std::vector<std::string> users;
+    if (sqlite3_prepare_v2(database.getConnection(), sql, -1, &stmt, nullptr) == SQLITE_OK) {
+        sqlite3_bind_text(stmt, 1, groupName.c_str(), -1, SQLITE_TRANSIENT);
+        while (sqlite3_step(stmt) == SQLITE_ROW) {
+            const char* name = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
+            if (name) users.emplace_back(name);
+        }
     }
     sqlite3_finalize(stmt);
     return users;

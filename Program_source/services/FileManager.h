@@ -46,12 +46,19 @@ public:
 
     // Permisiuni
     bool addUserToGroup(int entityId, const std::string& username);
+    bool removeUserFromGroup(int entityId, const std::string& username);
     bool checkPermission(int entityId, const std::string& username, const std::string& operation);
+    bool setPermission(int entityId, const std::string& username, bool canRead, bool canWrite);
+    bool updateGroupPermissions(int entityId, bool canRead, bool canWrite);
+    bool updateOthersPermissions(int entityId, bool canRead, bool canWrite);
     std::vector<Group> getEntityGroups(int entityId);
+    PermissionManager loadPermissions(int entityId);
 
-    // Share
+    // Share & Partajare Recursiva
     bool shareEntity(int entityId, const std::string& username);
     bool revokeShare(int entityId, const std::string& username);
+    std::vector<std::string> getSharedWithList(int entityId) const;
+    int getParentId(int entityId) const;
 
     // Utilitare
     int getRootId();
@@ -64,6 +71,5 @@ private:
     iLogger& logger;
 
     bool savePermissions(int entityId, const PermissionManager& pm);
-    PermissionManager loadPermissions(int entityId);
     bool isSharedWith(int entityId, const std::string& username) const;
 };
