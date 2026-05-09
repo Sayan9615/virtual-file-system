@@ -5,27 +5,28 @@
 #include "User.h"
 #include "EventLog.h"
 #include "../interfaces/ILogger.h"
+#include "IAuthService.h"
 
-class AuthService {
+class AuthService : public IAuthService {
 public:
     AuthService(Database& database, iLogger& logger);
 
     bool initializeDatabase();
 
-    bool registerUser(const std::string& username, const std::string& password);
-    bool login(const std::string& username, const std::string& password);
-    void logout();
+    virtual bool registerUser(const std::string& username, const std::string& password) override;
+    virtual bool login(const std::string& username, const std::string& password) override;
+    virtual void logout() override;
 
     bool isAuthenticated() const;
     User getCurrentUser() const;
 
-    std::vector<std::pair<int, std::string>> getAllUsers() const;
+    virtual std::vector<std::pair<int, std::string>> getAllUsers() const override;
 
-    bool createGroup(const std::string& groupName);
-    bool addUserToGroup(const std::string& groupName, const std::string& username);
-    bool removeUserFromGroup(const std::string& groupName, const std::string& username); // FIX: ADAUGAT AICI
-    std::vector<std::string> getAllGroups() const;
-    std::vector<std::string> getUsersInGroup(const std::string& groupName) const;
+    virtual bool createGroup(const std::string& groupName) override;
+    virtual bool addUserToGroup(const std::string& groupName, const std::string& username) override;
+    virtual bool removeUserFromGroup(const std::string& groupName, const std::string& username) override;
+    virtual std::vector<std::string> getAllGroups() const override;
+    virtual std::vector<std::string> getUsersInGroup(const std::string& groupName) const override;
 
 private:
     Database& database;
