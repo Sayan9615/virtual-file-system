@@ -2,65 +2,65 @@
 #include "FileSystemEntity.h"
 #include "../interfaces/iSearchable.h"
 #include "BPlusTree.h"
+#include "../services/SortManager.h"
 #include <vector>
 #include <memory>
 #include <algorithm>
 
+class Folder:public FileSystemEntity, public iSearchable
+{
+protected:
+    std::vector<std::shared_ptr<FileSystemEntity>> m_children;
+    BPlusTree<std::string,std::shared_ptr<FileSystemEntity>> m_index;
+    Folder *m_parent;
 
- class Folder:public FileSystemEntity, public iSearchable
- {
-    protected:
-        std::vector<std::shared_ptr<FileSystemEntity>> m_children;
-        BPlusTree<std::string,std::shared_ptr<FileSystemEntity>> m_index;
-        Folder *m_parent;
-    
-    public:
-        Folder(const std::string& name,const std::string& ownerUser,const std::string& ownerGroup,Folder *parent=nullptr);
-        Folder(const Folder& other);
-        Folder(Folder&& other)noexcept;
-        
-        //operator de atribuire
-        Folder& operator=(const Folder& other);
-        Folder& operator=(Folder && other)noexcept;
+public:
+    Folder(const std::string& name,const std::string& ownerUser,const std::string& ownerGroup,Folder *parent=nullptr);
+    Folder(const Folder& other);
+    Folder(Folder&& other)noexcept;
 
-        virtual ~Folder()=default;
+    //operator de atribuire
+    Folder& operator=(const Folder& other);
+    Folder& operator=(Folder && other)noexcept;
 
-        //getteri
-        Folder* getParent()const {return this->m_parent;}
-        int getChildCount()const {return this->m_children.size();}
-        std::vector<std::shared_ptr<FileSystemEntity>> getChildren() const {return this->m_children;}
+    virtual ~Folder()=default;
 
-        //setteri
-        void setParent(Folder *parent){this->m_parent=parent;}
+    //getteri
+    Folder* getParent()const {return this->m_parent;}
+    int getChildCount()const {return this->m_children.size();}
+    std::vector<std::shared_ptr<FileSystemEntity>> getChildren() const {return this->m_children;}
 
-        void addChild(std::shared_ptr<FileSystemEntity>entity);
-        void removeChild(const std::string& name);
-        std::shared_ptr<FileSystemEntity> findChild(const std::string& name)const;
-        bool hasChild(const std::string& name)const;
+    //setteri
+    void setParent(Folder *parent){this->m_parent=parent;}
 
-        std::string getAbsolutePath()const;
+    void addChild(std::shared_ptr<FileSystemEntity>entity);
+    void removeChild(const std::string& name);
+    std::shared_ptr<FileSystemEntity> findChild(const std::string& name)const;
+    bool hasChild(const std::string& name)const;
 
-        std::size_t getSize() const override;
-        bool isFolder()  const override{return true;}
+    std::string getAbsolutePath()const;
 
-        void display() const override;
-        std::string getIcon() const override;
+    std::size_t getSize() const override;
+    bool isFolder()  const override{return true;}
 
-        std::vector <std::string> search(const std::string &text) const override;
-        bool contains(const std::string& data)const override;
+    void display() const override;
+    std::string getIcon() const override;
 
-        std::string serialize() const override;
-        void deserialize(const std::string& data) override;
+    std::vector <std::string> search(const std::string &text) const override;
+    bool contains(const std::string& data)const override;
 
-        //operatori
-        bool operator==(const Folder& other)const;
-        bool operator<(const Folder& other)const;
+    std::string serialize() const override;
+    void deserialize(const std::string& data) override;
 
-        //[]<- pentru a duce direct la copil(file/date)
-        std::shared_ptr<FileSystemEntity>operator[](const std::string& name)const;
+    //operatori
+    bool operator==(const Folder& other)const;
+    bool operator<(const Folder& other)const;
 
-        friend std::ostream& operator<<(std::ostream & os,const Folder& folder);
-        
- };
+    //[]<- pentru a duce direct la copil(file/date)
+    std::shared_ptr<FileSystemEntity>operator[](const std::string& name)const;
 
+    friend std::ostream& operator<<(std::ostream & os,const Folder& folder);
 
+    // NOU: Metoda pentru a sorta fisierele si folderele
+    void sortChildrenRecursive(SortManager::SortCrit crit);
+};

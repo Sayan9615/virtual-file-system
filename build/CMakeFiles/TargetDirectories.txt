@@ -1,4 +1,0 @@
-C:/Users/paras/Documents/GitHub/virtual-file-system/build/CMakeFiles/ATMosFILE.dir
-C:/Users/paras/Documents/GitHub/virtual-file-system/build/CMakeFiles/ATMosFILE_Server.dir
-C:/Users/paras/Documents/GitHub/virtual-file-system/build/CMakeFiles/ALL_BUILD.dir
-C:/Users/paras/Documents/GitHub/virtual-file-system/build/CMakeFiles/ZERO_CHECK.dir
