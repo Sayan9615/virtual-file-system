@@ -34,8 +34,8 @@ bool RemoteFileManager::initializeDatabase() {
 }
 
 bool RemoteFileManager::createTextFile(const std::string& name, const std::string& ownerUser,
-                                        const std::string& ownerGroup, const std::string& content,
-                                        int parentId) {
+                                       const std::string& ownerGroup, const std::string& content,
+                                       int parentId) {
     std::string cmd = "FM_CREATE_TEXT_FILE|" + name + "|" + ownerUser + "|" + ownerGroup +
                       "|" + std::to_string(parentId) + "|" + content;
     auto parts = split(sendCmd(cmd), '|');
@@ -43,7 +43,7 @@ bool RemoteFileManager::createTextFile(const std::string& name, const std::strin
 }
 
 bool RemoteFileManager::createFolder(const std::string& name, const std::string& ownerUser,
-                                      const std::string& ownerGroup, int parentId) {
+                                     const std::string& ownerGroup, int parentId) {
     std::string cmd = "FM_CREATE_FOLDER|" + name + "|" + ownerUser + "|" + ownerGroup +
                       "|" + std::to_string(parentId);
     auto parts = split(sendCmd(cmd), '|');
@@ -58,6 +58,13 @@ bool RemoteFileManager::renameEntity(int id, const std::string& newName, const s
 
 bool RemoteFileManager::deleteEntity(int id, const std::string& username) {
     std::string cmd = "FM_DELETE|" + std::to_string(id) + "|" + username;
+    auto parts = split(sendCmd(cmd), '|');
+    return !parts.empty() && parts[0] == "OK";
+}
+
+// 🔥 Adăugat: updateTextFile
+bool RemoteFileManager::updateTextFile(int id, const std::string& content, const std::string& username) {
+    std::string cmd = "FM_UPDATE_TEXT_FILE|" + std::to_string(id) + "|" + username + "|" + content;
     auto parts = split(sendCmd(cmd), '|');
     return !parts.empty() && parts[0] == "OK";
 }
@@ -148,11 +155,10 @@ int RemoteFileManager::getRootId() {
 }
 
 std::shared_ptr<Folder> RemoteFileManager::buildTree(int folderId, Folder* /*parent*/,
-                                                       const std::string& username) {
+                                                     const std::string& username) {
     std::string cmd = "FM_BUILD_TREE|" + username;
     std::string resp = sendCmd(cmd);
 
-    // Find the first '|' to separate OK from JSON
     size_t sep = resp.find('|');
     if (sep == std::string::npos || resp.substr(0, sep) != "OK") return nullptr;
 
@@ -162,12 +168,9 @@ std::shared_ptr<Folder> RemoteFileManager::buildTree(int folderId, Folder* /*par
 
     QJsonArray arr = doc.array();
 
-    // Map id -> shared_ptr<FileSystemEntity>
     std::map<int, std::shared_ptr<FileSystemEntity>> entityMap;
-    // Map id -> parentId
     std::map<int, int> parentMap;
 
-    // First pass: create all entities
     for (const auto& val : arr) {
         QJsonObject obj = val.toObject();
         int id       = obj["id"].toInt();
@@ -217,20 +220,17 @@ std::shared_ptr<Folder> RemoteFileManager::buildTree(int folderId, Folder* /*par
         }
     }
 
-    // Second pass: build tree by adding children to parents
     std::shared_ptr<Folder> root = nullptr;
 
     for (auto& [id, entity] : entityMap) {
         int parentId = parentMap[id];
         if (parentId == 0) {
-            // This is root
             root = std::dynamic_pointer_cast<Folder>(entity);
         } else {
             auto it = entityMap.find(parentId);
             if (it != entityMap.end()) {
                 auto parentFolder = std::dynamic_pointer_cast<Folder>(it->second);
                 if (parentFolder) {
-                    // Set parent pointer for folders
                     if (entity->isFolder()) {
                         auto childFolder = std::dynamic_pointer_cast<Folder>(entity);
                         if (childFolder) childFolder->setParent(parentFolder.get());
@@ -242,4 +242,32 @@ std::shared_ptr<Folder> RemoteFileManager::buildTree(int folderId, Folder* /*par
     }
 
     return root;
+}
+
+bool RemoteFileManager::createBinaryFile(const std::string& name, const std::string& ownerUser, const std::string& ownerGroup, const std::string& extension, int parentId) {
+    return false;
+}
+
+int RemoteFileManager::getEntityId(const std::string& name, int parentId) {
+    std::string resp = sendCmd("FM_BUILD_TREE|");
+    size_t sep = resp.find('|');
+    if (sep == std::string::npos || resp.substr(0, sep) != "OK") return -1;
+
+    std::string jsonStr = resp.substr(sep + 1);
+    QJsonDocument doc = QJsonDocument::fromJson(QByteArray::fromStdString(jsonStr));
+    if (!doc.isArray()) return -1;
+
+    QJsonArray arr = doc.array();
+
+    for (const auto& val : arr) {
+        QJsonObject obj = val.toObject();
+        if (obj["name"].toString().toStdString() == name && obj["parentId"].toInt() == parentId) {
+            return obj["id"].toInt();
+        }
+    }
+    return -1;
+}
+
+std::vector<std::shared_ptr<FileSystemEntity>> RemoteFileManager::getChildren(int parentId) {
+    return {};
 }

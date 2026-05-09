@@ -255,7 +255,6 @@ void handleClient(SOCKET clientSocket) {
                 if (parts.size() < 6) { response = "ERR|missing args"; }
                 else {
                     int parentId = stoi(parts[4]);
-                    // content may contain '|', rejoin
                     string content;
                     for (size_t i = 5; i < parts.size(); ++i) {
                         if (i > 5) content += "|";
@@ -287,6 +286,20 @@ void handleClient(SOCKET clientSocket) {
                     int id = stoi(parts[1]);
                     bool ok = g_fm->deleteEntity(id, parts[2]);
                     response = ok ? "OK" : "ERR|delete failed";
+                }
+            }
+            // 🔥 Adăugat: FM_UPDATE_TEXT_FILE
+            else if (cmd == "FM_UPDATE_TEXT_FILE") {
+                if (parts.size() < 4) { response = "ERR|missing args"; }
+                else {
+                    int id = stoi(parts[1]);
+                    std::string content;
+                    for (size_t i = 3; i < parts.size(); ++i) {
+                        if (i > 3) content += "|";
+                        content += parts[i];
+                    }
+                    bool ok = g_fm->updateTextFile(id, content, parts[2]);
+                    response = ok ? "OK" : "ERR|update failed";
                 }
             }
             else if (cmd == "FM_CHECK_PERMISSION") {

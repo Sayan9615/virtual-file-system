@@ -17,6 +17,10 @@ public:
                       const std::string& ownerGroup, int parentId = 1) override;
     bool renameEntity(int id, const std::string& newName, const std::string& username) override;
     bool deleteEntity(int id, const std::string& username) override;
+
+
+    bool updateTextFile(int id, const std::string& content, const std::string& username) override;
+
     bool checkPermission(int entityId, const std::string& username, const std::string& operation) override;
     bool setPermission(int entityId, const std::string& username, bool canRead, bool canWrite) override;
     bool updateGroupPermissions(int entityId, bool canRead, bool canWrite) override;
@@ -30,6 +34,12 @@ public:
     int getRootId() override;
     std::shared_ptr<Folder> buildTree(int folderId, Folder* parent = nullptr,
                                       const std::string& username = "") override;
+
+    bool createBinaryFile(const std::string& name, const std::string& ownerUser,
+                          const std::string& ownerGroup, const std::string& extension,
+                          int parentId = 1) override;
+    int getEntityId(const std::string& name, int parentId) override;
+    std::vector<std::shared_ptr<FileSystemEntity>> getChildren(int parentId) override;
 
 private:
     SocketClient& m_client;

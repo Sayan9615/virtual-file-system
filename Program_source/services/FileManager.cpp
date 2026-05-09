@@ -2,6 +2,7 @@
 #include <sqlite3.h>
 #include <iostream>
 #include <sstream>
+#include <algorithm>
 
 FileManager::FileManager(Database& db, iLogger& logger)
     : db(db), logger(logger) {}
@@ -218,7 +219,15 @@ std::vector<std::shared_ptr<FileSystemEntity>> FileManager::getChildren(int pare
         if (typeStr == "TEXT") {
             auto tf = getTextFile(id);
             if (tf) children.push_back(tf);
-        } else if (typeStr == "FOLDER") {
+        }
+        else if (typeStr == "BINARY") {
+            auto bf = std::make_shared<BinaryFile>(name ? name : "", owner ? owner : "", group ? group : "", ".bin");
+            bf->setId(id);
+            bf->setCreatedAt(created);
+            bf->setModifiedAt(modified);
+            children.push_back(bf);
+        }
+        else if (typeStr == "FOLDER") {
             auto folder = std::make_shared<Folder>(name ? name : "", owner ? owner : "", group ? group : "");
             folder->setId(id);
             folder->setCreatedAt(created);
@@ -636,13 +645,23 @@ std::shared_ptr<Folder> FileManager::buildTree(int folderId, Folder* parent, con
         if (!username.empty() && !checkPermission(id, username, "read"))
             continue;
 
-        // SCUT ANTI-CRASH AICI: Prindem erorile ca sa nu ne explodeze programul
         if (type == "TEXT") {
             auto tf = getTextFile(id);
             if (tf) {
                 try { folder->addChild(tf); } catch (...) {}
             }
-        } else if (type == "FOLDER" || type == "SHARED_FOLDER") {
+        }
+        else if (type == "BINARY") {
+            auto bf = std::make_shared<BinaryFile>(
+                reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1)) ? reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1)) : "",
+                reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3)) ? reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3)) : "",
+                reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4)) ? reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4)) : "",
+                ".bin"
+                );
+            bf->setId(id);
+            try { folder->addChild(bf); } catch (...) {}
+        }
+        else if (type == "FOLDER" || type == "SHARED_FOLDER") {
             subfolders.push_back({id, type});
         }
     }
@@ -665,7 +684,6 @@ std::shared_ptr<Folder> FileManager::buildTree(int folderId, Folder* parent, con
         while (sqlite3_step(sharedStmt) == SQLITE_ROW) {
             int sharedId = sqlite3_column_int(sharedStmt, 0);
 
-            // ANTI-BUCLA DE CRASH AICI: Nu incerca sa randezi "Root"-ul inca o data daca a primit share
             if (sharedId == folderId || sharedId == 1) continue;
 
             std::string type = reinterpret_cast<const char*>(sqlite3_column_text(sharedStmt, 1));

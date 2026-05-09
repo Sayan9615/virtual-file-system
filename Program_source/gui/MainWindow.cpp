@@ -21,8 +21,10 @@
 #include <QFormLayout>
 #include <QCheckBox>
 #include <QComboBox>
+#include <QShortcut>
 #include <fstream>
 #include <algorithm>
+#include <functional>
 
 MainWindow::MainWindow(Folder* root, const std::string& username, IFileManager& fm, IAuthService& auth, QWidget* parent)
     : QMainWindow(parent), m_root(root), m_currentUser(username), m_fm(fm), m_auth(auth),
@@ -48,18 +50,16 @@ void MainWindow::closeEvent(QCloseEvent* event) {
     QMainWindow::closeEvent(event);
 }
 
-void MainWindow::saveSystemState() {
-    logEvent("SYSTEM", "Datele au fost salvate automat in baza de date SQLite.");
-}
-
-void MainWindow::loadSystemState() {
-    logEvent("SYSTEM", "Sistemul a fost incarcat cu succes din SQLite.");
-}
+void MainWindow::saveSystemState() { logEvent("SYSTEM", "Datele au fost salvate automat in baza de date SQLite."); }
+void MainWindow::loadSystemState() { logEvent("SYSTEM", "Sistemul a fost incarcat cu succes din SQLite."); }
 
 void MainWindow::setupMenuBar() {
     QMenu* fileMenu      = menuBar()->addMenu("File");
     QAction* newFileAction   = fileMenu->addAction("Fisier nou");
     QAction* newFolderAction = fileMenu->addAction("Folder nou");
+    fileMenu->addSeparator();
+    QAction* editFileAction = fileMenu->addAction("Editeaza fisier (Enter)");
+    editFileAction->setShortcut(QKeySequence(Qt::Key_Return));
     fileMenu->addSeparator();
     QAction* exitAction  = fileMenu->addAction("Iesire");
 
@@ -82,12 +82,10 @@ void MainWindow::setupMenuBar() {
     QAction* showLogsAction   = logMenu->addAction("Afiseaza log-uri");
     QAction* exportLogsAction = logMenu->addAction("Export log-uri");
 
-    QMenu* helpMenu      = menuBar()->addMenu("Help");
-    QAction* aboutAction = helpMenu->addAction("Despre ATMosFS");
-
     connect(exitAction,       &QAction::triggered, qApp, &QApplication::quit);
     connect(newFileAction,    &QAction::triggered, this, &MainWindow::onNewFile);
     connect(newFolderAction,  &QAction::triggered, this, &MainWindow::onNewFolder);
+    connect(editFileAction,   &QAction::triggered, this, &MainWindow::onEditFile);
     connect(renameAction,     &QAction::triggered, this, &MainWindow::onRename);
     connect(deleteAction,     &QAction::triggered, this, &MainWindow::onDelete);
     connect(shareMenuAction,  &QAction::triggered, this, &MainWindow::onShareDialog);
@@ -98,9 +96,6 @@ void MainWindow::setupMenuBar() {
     connect(sortDateAction,   &QAction::triggered, this, &MainWindow::onSortByDate);
     connect(showLogsAction,   &QAction::triggered, this, &MainWindow::onShowLogs);
     connect(exportLogsAction, &QAction::triggered, this, &MainWindow::onExportLogs);
-    connect(aboutAction,      &QAction::triggered, this, [this]() {
-        QMessageBox::about(this, "Despre ATMosFS", "ATMosFS — Sistem de Fisiere Virtual\nProiect POO C++\n\nArhitectura: client-server, SQLite, Qt\nIndex: B+ Tree");
-    });
 }
 
 void MainWindow::setupUI() {
@@ -138,29 +133,24 @@ void MainWindow::setupUI() {
     m_treeView->setAnimated(true);
     m_treeView->setSortingEnabled(false);
 
-    // ── FIX SORTARE LA CLICK ────────────────────────────────
+    // ── SORTARE LA CLICK PE HEADER (VERSIUNEA FUNCTIONALA) ──
     m_treeView->header()->setSectionsClickable(true);
     m_treeView->header()->setSortIndicatorShown(true);
 
     connect(m_treeView->header(), &QHeaderView::sortIndicatorChanged, this, [this](int logicalIndex, Qt::SortOrder order) {
         if (logicalIndex == 0) {
             m_currentSort = (order == Qt::AscendingOrder) ? SortManager::SortCrit::NAME_ASC : SortManager::SortCrit::NAME_DESC;
-            m_root->sortChildrenRecursive(m_currentSort);
-            m_model->refresh();
             m_statusLabel->setText(order == Qt::AscendingOrder ? "Sortat dupa: Nume A→Z" : "Sortat dupa: Nume Z→A");
         } else if (logicalIndex == 2) {
             m_currentSort = (order == Qt::AscendingOrder) ? SortManager::SortCrit::SIZE_ASC : SortManager::SortCrit::SIZE_DESC;
-            m_root->sortChildrenRecursive(m_currentSort);
-            m_model->refresh();
             m_statusLabel->setText(order == Qt::AscendingOrder ? "Sortat dupa: Dimensiune (mic→mare)" : "Sortat dupa: Dimensiune (mare→mic)");
         } else if (logicalIndex == 3) {
             m_currentSort = (order == Qt::AscendingOrder) ? SortManager::SortCrit::DATE_ASC : SortManager::SortCrit::DATE_DESC;
-            m_root->sortChildrenRecursive(m_currentSort);
-            m_model->refresh();
             m_statusLabel->setText(order == Qt::AscendingOrder ? "Sortat dupa: Data (vechi→nou)" : "Sortat dupa: Data (nou→vechi)");
         }
+        m_root->sortChildrenRecursive(m_currentSort);
+        m_model->refresh();
     });
-    // ────────────────────────────────────────────────────────
 
     m_treeView->header()->setSectionResizeMode(0, QHeaderView::Stretch);
     m_treeView->header()->resizeSection(1, 80);
@@ -224,12 +214,37 @@ void MainWindow::setupUI() {
     connect(m_searchBar, &QLineEdit::returnPressed, this, &MainWindow::onSearchTriggered);
     connect(m_addressBar, &QLineEdit::returnPressed, this, &MainWindow::onAddressBarEntered);
     connect(m_searchResults, &QListWidget::itemClicked, this, &MainWindow::onSearchResultClicked);
+
+    connect(m_treeView, &QTreeView::doubleClicked, this, [this](const QModelIndex& index) {
+        if (!index.isValid()) return;
+        auto* entity = m_model->entityFromIndex(index);
+        if (entity && !entity->isFolder()) {
+            showEditDialog(entity);
+        }
+    });
+
+    // Deselectare / Creare in Root
+    connect(m_treeView, &QTreeView::clicked, this, [this](const QModelIndex& index) {
+        static QModelIndex lastClickedIndex;
+        if (lastClickedIndex == index && m_treeView->selectionModel()->isSelected(index)) {
+            m_treeView->clearSelection();
+            m_treeView->setCurrentIndex(QModelIndex());
+            lastClickedIndex = QModelIndex();
+            m_addressBar->setText("/root");
+            m_statusLabel->setText("Selectie anulata. Fisierele noi vor fi create in Root.");
+        } else {
+            lastClickedIndex = index;
+        }
+    });
 }
 
-// ── Permisiuni ───────────────────────────────────────
+// ── Permisiuni ───────────
 
 bool MainWindow::checkWritePermission(FileSystemEntity* entity) {
     if (!entity) return false;
+
+    if (entity->getId() <= 1) return true;
+
     if (entity->getOwnerUser() == m_currentUser) return true;
 
     if (!m_fm.checkPermission(entity->getId(), m_currentUser, "write")) {
@@ -243,6 +258,9 @@ bool MainWindow::checkWritePermission(FileSystemEntity* entity) {
 
 bool MainWindow::checkReadPermission(FileSystemEntity* entity) {
     if (!entity) return false;
+
+    if (entity->getId() <= 1) return true;
+
     if (entity->getOwnerUser() == m_currentUser) return true;
 
     if (!m_fm.checkPermission(entity->getId(), m_currentUser, "read")) {
@@ -268,9 +286,7 @@ void MainWindow::onItemSelected(const QModelIndex& index) {
 
     if (entity->isFolder()) {
         auto* folder = dynamic_cast<Folder*>(entity);
-        if (folder) {
-            m_addressBar->setText(QString::fromStdString(folder->getAbsolutePath()));
-        }
+        if (folder) m_addressBar->setText(QString::fromStdString(folder->getAbsolutePath()));
     }
 }
 
@@ -286,6 +302,8 @@ void MainWindow::onAddressBarEntered() {
     }
 
     m_addressBar->setStyleSheet("");
+    auto entity = m_pathResolver->resolvePath(path.toStdString());
+    if (entity) showPreview(entity.get());
     logEvent("NAVIGATE", path.toStdString());
 }
 
@@ -322,47 +340,62 @@ void MainWindow::onSearchResultClicked(QListWidgetItem* item) {
     if (!item) return;
     QString path = item->data(Qt::UserRole).toString();
     m_addressBar->setText(path);
+    auto entity = m_pathResolver->resolvePath(path.toStdString());
+    if (entity) showPreview(entity.get());
 }
 
-// ── Creare fisier ────────────────────────────────────
+// ── Creare fisier FARA POPUP LOCATIE ─────────────────
 
 void MainWindow::onNewFile() {
     auto index = m_treeView->currentIndex();
     Folder* parentFolder = m_root;
-    int parentId = m_root->getId();
 
     if (index.isValid()) {
         auto* entity = m_model->entityFromIndex(index);
-        if (entity && entity->isFolder()) {
-            if (!checkWritePermission(entity)) return;
-            parentFolder = dynamic_cast<Folder*>(entity);
-            if (parentFolder) parentId = parentFolder->getId();
-        } else if (entity && !entity->isFolder()) {
-            auto parentIndex = m_model->parent(index);
-            if (parentIndex.isValid()) {
-                auto* parent = m_model->entityFromIndex(parentIndex);
-                if (!checkWritePermission(parent)) return;
-                parentFolder = dynamic_cast<Folder*>(parent);
-                if (parentFolder) parentId = parentFolder->getId();
+        if (entity) {
+            if (entity->isFolder()) {
+                parentFolder = dynamic_cast<Folder*>(entity);
+            } else {
+                auto parentIndex = m_model->parent(index);
+                if (parentIndex.isValid()) {
+                    parentFolder = dynamic_cast<Folder*>(m_model->entityFromIndex(parentIndex));
+                }
             }
         }
     }
 
-    bool ok;
-    QString name = QInputDialog::getText(this, "Fisier nou", "Numele fisierului (fara extensie):",
-                                         QLineEdit::Normal, QString("Document Nou %1").arg(parentFolder->getChildCount() + 1), &ok);
+    if (!checkWritePermission(parentFolder)) return;
 
-    if (!ok || name.isEmpty()) return;
+    int parentId = parentFolder->getId();
+    if (parentId <= 0) parentId = 1;
+
+    bool ok;
+    QString name = QInputDialog::getText(this, "Fisier nou", "Numele fisierului (ex: text.txt, proiect.docx):",
+                                         QLineEdit::Normal, QString("Document_%1.txt").arg(parentFolder->getChildCount() + 1), &ok);
+
+    if (!ok || name.trimmed().isEmpty()) return;
+    name = name.trimmed();
+
+    if (parentFolder->hasChild(name.toStdString())) {
+        QMessageBox::warning(this, "Eroare", QString("Exista deja un element cu numele '%1' in acest folder!").arg(name));
+        return;
+    }
 
     try {
-        bool saved = m_fm.createTextFile(name.toStdString(), m_currentUser, "users", "", parentId);
-        if (!saved) { QMessageBox::warning(this, "Eroare", "Nu s-a putut salva fisierul in baza de date!"); return; }
+        bool saved = m_fm.createTextFile(name.toStdString(), m_currentUser, "users", " ", parentId);
+        if (!saved) { QMessageBox::warning(this, "Eroare", "Eroare la salvare in baza de date."); return; }
 
-        auto newFile = std::make_shared<TextFile>(name.toStdString(), m_currentUser, "users", "");
+        int newId = m_fm.getEntityId(name.toStdString(), parentId);
+
+        auto newFile = std::make_shared<TextFile>(name.toStdString(), m_currentUser, "users", " ");
+        if (newId != -1) newFile->setId(newId);
+
         parentFolder->addChild(newFile);
-
         m_model->refresh();
-        if (index.isValid() && m_model->entityFromIndex(index) && m_model->entityFromIndex(index)->isFolder()) { m_treeView->expand(index); }
+
+        if (index.isValid() && m_model->entityFromIndex(index) && m_model->entityFromIndex(index)->isFolder()) {
+            m_treeView->expand(index);
+        }
 
         logEvent("CREATE_FILE", name.toStdString());
         m_statusLabel->setText("Fisier creat: " + name);
@@ -371,45 +404,58 @@ void MainWindow::onNewFile() {
     }
 }
 
-// ── Creare folder ────────────────────────────────────
+// ── Creare folder FARA POPUP LOCATIE ─────────────────
 
 void MainWindow::onNewFolder() {
     auto index = m_treeView->currentIndex();
     Folder* parentFolder = m_root;
-    int parentId = m_root->getId();
 
     if (index.isValid()) {
         auto* entity = m_model->entityFromIndex(index);
-        if (entity && entity->isFolder()) {
-            if (!checkWritePermission(entity)) return;
-            parentFolder = dynamic_cast<Folder*>(entity);
-            if (parentFolder) parentId = parentFolder->getId();
-        } else if (entity && !entity->isFolder()) {
-            auto parentIndex = m_model->parent(index);
-            if (parentIndex.isValid()) {
-                auto* parent = m_model->entityFromIndex(parentIndex);
-                if (!checkWritePermission(parent)) return;
-                parentFolder = dynamic_cast<Folder*>(parent);
-                if (parentFolder) parentId = parentFolder->getId();
+        if (entity) {
+            if (entity->isFolder()) {
+                parentFolder = dynamic_cast<Folder*>(entity);
+            } else {
+                auto parentIndex = m_model->parent(index);
+                if (parentIndex.isValid()) {
+                    parentFolder = dynamic_cast<Folder*>(m_model->entityFromIndex(parentIndex));
+                }
             }
         }
     }
 
+    if (!checkWritePermission(parentFolder)) return;
+
+    int parentId = parentFolder->getId();
+    if (parentId <= 0) parentId = 1;
+
     bool ok;
     QString name = QInputDialog::getText(this, "Folder nou", "Numele folderului:",
-                                         QLineEdit::Normal, QString("Folder Nou %1").arg(parentFolder->getChildCount() + 1), &ok);
+                                         QLineEdit::Normal, QString("Folder_%1").arg(parentFolder->getChildCount() + 1), &ok);
 
-    if (!ok || name.isEmpty()) return;
+    if (!ok || name.trimmed().isEmpty()) return;
+    name = name.trimmed();
+
+    if (parentFolder->hasChild(name.toStdString())) {
+        QMessageBox::warning(this, "Eroare", QString("Exista deja un element cu numele '%1' in acest folder!").arg(name));
+        return;
+    }
 
     try {
         bool saved = m_fm.createFolder(name.toStdString(), m_currentUser, "users", parentId);
-        if (!saved) { QMessageBox::warning(this, "Eroare", "Nu s-a putut salva folderul in baza de date!"); return; }
+        if (!saved) { QMessageBox::warning(this, "Eroare", "Eroare la salvare in baza de date."); return; }
+
+        int newId = m_fm.getEntityId(name.toStdString(), parentId);
 
         auto newFolder = std::make_shared<Folder>(name.toStdString(), m_currentUser, "users", parentFolder);
-        parentFolder->addChild(newFolder);
+        if (newId != -1) newFolder->setId(newId);
 
+        parentFolder->addChild(newFolder);
         m_model->refresh();
-        if (index.isValid() && m_model->entityFromIndex(index) && m_model->entityFromIndex(index)->isFolder()) { m_treeView->expand(index); }
+
+        if (index.isValid() && m_model->entityFromIndex(index) && m_model->entityFromIndex(index)->isFolder()) {
+            m_treeView->expand(index);
+        }
 
         logEvent("CREATE_FOLDER", name.toStdString());
         m_statusLabel->setText("Folder creat: " + name);
@@ -418,7 +464,147 @@ void MainWindow::onNewFolder() {
     }
 }
 
-// ── Redenumire ───────────────────────────────────────
+// ── Editare Text ─────────────────────────────────────
+
+void MainWindow::onEditFile() {
+    auto index = m_treeView->currentIndex();
+    if (!index.isValid()) return;
+    auto* entity = m_model->entityFromIndex(index);
+    if (entity && !entity->isFolder()) {
+        showEditDialog(entity);
+    }
+}
+
+void MainWindow::showEditDialog(FileSystemEntity* entity) {
+    if (!entity || entity->isFolder()) return;
+    std::string name = entity->getName();
+
+    if (name.find(".docx") != std::string::npos ||
+        name.find(".pptx") != std::string::npos ||
+        name.find(".xlsx") != std::string::npos ||
+        name.find(".pdf") != std::string::npos) {
+        onOpenExternal();
+        return;
+    }
+
+    auto* tf = dynamic_cast<TextFile*>(entity);
+    if (!tf) { onOpenExternal(); return; }
+
+    if (!checkWritePermission(entity)) return;
+
+    QDialog dialog(this);
+    dialog.setWindowTitle(QString("Editeaza — %1").arg(QString::fromStdString(name)));
+    dialog.setMinimumSize(600, 400);
+
+    auto* layout = new QVBoxLayout(&dialog);
+    auto* editor = new QTextEdit(&dialog);
+    editor->setPlainText(QString::fromStdString(tf->read()));
+    editor->setFont(QFont("Consolas", 11));
+    layout->addWidget(editor, 1);
+
+    auto* btnLayout = new QHBoxLayout();
+    auto* cancelBtn = new QPushButton("Anuleaza", &dialog);
+    auto* saveBtn   = new QPushButton("💾 Salveaza", &dialog);
+    btnLayout->addStretch();
+    btnLayout->addWidget(cancelBtn);
+    btnLayout->addWidget(saveBtn);
+    layout->addLayout(btnLayout);
+
+    auto* saveShortcut = new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_S), &dialog);
+    connect(saveShortcut, &QShortcut::activated, saveBtn, &QPushButton::click);
+    connect(cancelBtn, &QPushButton::clicked, &dialog, &QDialog::reject);
+
+    connect(saveBtn, &QPushButton::clicked, &dialog, [&]() {
+        QString newContent = editor->toPlainText();
+        try {
+            if (m_fm.updateTextFile(entity->getId(), newContent.toStdString(), m_currentUser)) {
+                tf->write(newContent.toStdString());
+                showPreview(entity);
+                updateStatusBar(entity);
+                m_model->refresh();
+                logEvent("EDIT_FILE", entity->getName());
+                dialog.accept();
+                m_statusLabel->setText(QString("Salvat: %1").arg(QString::fromStdString(entity->getName())));
+            } else {
+                QMessageBox::warning(&dialog, "Eroare", "Eroare la salvare in baza de date.");
+            }
+        } catch (const std::exception& e) { QMessageBox::warning(&dialog, "Eroare", e.what()); }
+    });
+
+    dialog.exec();
+}
+
+// ── Deschidere si Sincronizare Office (.docx) ────────
+
+void MainWindow::onOpenExternal() {
+    auto index = m_treeView->currentIndex();
+    if (!index.isValid()) return;
+
+    auto* entity = m_model->entityFromIndex(index);
+    if (!entity || entity->isFolder()) return;
+    if (!checkReadPermission(entity)) return;
+
+    try {
+        QString safeName = QString::fromStdString(entity->getName());
+
+        if (safeName.endsWith(".docx", Qt::CaseInsensitive) || safeName.endsWith(".pptx", Qt::CaseInsensitive)) {
+            safeName += ".rtf";
+        }
+
+        QString tempPath = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/" + safeName;
+        QFile realFile(tempPath);
+
+        if (realFile.open(QIODevice::WriteOnly)) {
+            auto* tf = dynamic_cast<TextFile*>(entity);
+            if (tf) {
+                QByteArray rawData(tf->read().data(), tf->read().length());
+                realFile.write(rawData);
+            }
+            realFile.close();
+
+            QDesktopServices::openUrl(QUrl::fromLocalFile(tempPath));
+            logEvent("OPEN_EXTERNAL", entity->getName());
+
+            int idToCheck = entity->getId() <= 0 ? 1 : entity->getId();
+
+            if (entity->getOwnerUser() == m_currentUser || m_fm.checkPermission(idToCheck, m_currentUser, "write")) {
+                QMessageBox msgBox(this);
+                msgBox.setWindowTitle("Sincronizare Microsoft Office / Externa");
+                msgBox.setText("Documentul a fost lansat cu succes.\n\n"
+                               "1. Dupa ce ati scris, apasati SAVE in Word (Ctrl+S).\n"
+                               "2. Inchideti Word.\n"
+                               "3. Apasati OK mai jos pentru a prelua si salva in baza noastra de date.");
+                msgBox.setIcon(QMessageBox::Information);
+                msgBox.exec();
+
+                if (realFile.open(QIODevice::ReadOnly)) {
+                    QByteArray newData = realFile.readAll();
+                    realFile.close();
+
+                    std::string newContentStr(newData.constData(), newData.length());
+
+                    if (m_fm.updateTextFile(entity->getId(), newContentStr, m_currentUser)) {
+                        if (tf) tf->write(newContentStr);
+                        m_model->refresh();
+                        showPreview(entity);
+                        m_statusLabel->setText("Sincronizare reusita din Word!");
+                        logEvent("UPDATE_FROM_EXTERNAL", entity->getName());
+                    } else {
+                        QMessageBox::warning(this, "Eroare DB", "Modificarile facute in Word nu au putut fi urcate pe server.");
+                    }
+                }
+            } else {
+                m_statusLabel->setText("Deschis in modul Read-Only.");
+            }
+        } else {
+            QMessageBox::warning(this, "Eroare", "Nu s-a putut crea fisierul temporar (TempLocation)!");
+        }
+    } catch (const std::exception& e) {
+        QMessageBox::warning(this, "Eroare", QString::fromStdString(e.what()));
+    }
+}
+
+// ── Redenumire / Stergere ────────────────────────────
 
 void MainWindow::onRename() {
     auto index = m_treeView->currentIndex();
@@ -450,8 +636,6 @@ void MainWindow::onRename() {
     }
 }
 
-// ── Stergere ─────────────────────────────────────────
-
 void MainWindow::onDelete() {
     auto index = m_treeView->currentIndex();
     if (!index.isValid()) return;
@@ -462,7 +646,7 @@ void MainWindow::onDelete() {
     if (!checkWritePermission(entity)) return;
 
     auto reply = QMessageBox::question(this, "Confirmare stergere",
-                                       QString("Esti sigur ca vrei sa stergi '%1'?").arg(QString::fromStdString(entity->getName())),
+                                       QString("Esti sigur ca vrei ca stergi '%1'?").arg(QString::fromStdString(entity->getName())),
                                        QMessageBox::Yes | QMessageBox::No);
 
     if (reply != QMessageBox::Yes) return;
@@ -490,34 +674,67 @@ void MainWindow::onDelete() {
     }
 }
 
-// ── Deschide extern ──────────────────────────────────
+// ── Context Menu (Click Dreapta) ─────────────────────
 
-void MainWindow::onOpenExternal() {
-    auto index = m_treeView->currentIndex();
-    if (!index.isValid()) return;
+void MainWindow::onContextMenu(const QPoint& pos) {
+    QModelIndex index = m_treeView->indexAt(pos);
+    QMenu contextMenu(this);
 
-    auto* entity = m_model->entityFromIndex(index);
-    if (!entity || entity->isFolder()) return;
+    QAction* newFileAction   = contextMenu.addAction("📄 Fisier nou aici");
+    QAction* newFolderAction = contextMenu.addAction("📁 Folder nou aici");
+    contextMenu.addSeparator();
 
-    if (!checkReadPermission(entity)) return;
+    QAction* openExternalAction = nullptr;
+    QAction* editAction         = nullptr;
+    QAction* renameAction       = nullptr;
+    QAction* deleteAction       = nullptr;
+    QAction* shareAction        = nullptr;
+    QAction* propertiesAction   = nullptr;
 
-    try {
-        QString tempPath = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/" + QString::fromStdString(entity->getName());
+    FileSystemEntity* entity = nullptr;
 
-        QFile realFile(tempPath);
-        if (realFile.open(QIODevice::WriteOnly)) {
-            auto* tf = dynamic_cast<TextFile*>(entity);
-            if (tf) realFile.write(QString::fromStdString(tf->read()).toUtf8());
-            realFile.close();
-            QDesktopServices::openUrl(QUrl::fromLocalFile(tempPath));
-            logEvent("OPEN_EXTERNAL", entity->getName());
-            m_statusLabel->setText("Fisier deschis extern: " + QString::fromStdString(entity->getName()));
-        } else {
-            QMessageBox::warning(this, "Eroare", "Nu s-a putut crea fisierul temporar!");
+    if (index.isValid()) {
+        entity = m_model->entityFromIndex(index);
+        if (entity) {
+            if (!entity->isFolder()) {
+                openExternalAction = contextMenu.addAction("🖥 Deschide extern (Word/Windows)");
+                editAction = contextMenu.addAction("📝 Editeaza Text in aplicatie");
+                contextMenu.addSeparator();
+            }
+
+            renameAction = contextMenu.addAction("✏ Redenumire (F2)");
+
+            deleteAction = contextMenu.addAction("🗑 Sterge");
+            int idToCheck = entity->getId() <= 0 ? 1 : entity->getId();
+            bool canWrite = (entity->getOwnerUser() == m_currentUser) || m_fm.checkPermission(idToCheck, m_currentUser, "write");
+            if (!canWrite) {
+                deleteAction->setEnabled(false);
+                deleteAction->setToolTip("Nu aveti permisiunea de scriere!");
+            }
+
+            contextMenu.addSeparator();
+
+            shareAction = contextMenu.addAction("🔗 Partajare (Share)...");
+            if (entity->getOwnerUser() != m_currentUser) {
+                shareAction->setEnabled(false);
+                shareAction->setToolTip("Doar proprietarul poate partaja!");
+            }
+
+            propertiesAction = contextMenu.addAction("⚙ Proprietati");
         }
-    } catch (const std::exception& e) {
-        QMessageBox::warning(this, "Eroare", QString::fromStdString(e.what()));
     }
+
+    QAction* selected = contextMenu.exec(m_treeView->viewport()->mapToGlobal(pos));
+    if (!selected) return;
+
+    if (selected == newFileAction)   { onNewFile();   return; }
+    if (selected == newFolderAction) { onNewFolder(); return; }
+    if (editAction && selected == editAction) { showEditDialog(entity); return; }
+    if (renameAction && selected == renameAction) { onRename(); return; }
+    if (deleteAction && selected == deleteAction) { onDelete(); return; }
+    if (openExternalAction && selected == openExternalAction) { onOpenExternal(); return; }
+    if (shareAction && selected == shareAction) { showShareDialog(entity); return; }
+    if (propertiesAction && selected == propertiesAction) { showPropertiesDialog(entity); return; }
 }
 
 // ── Dialog gestionare grupuri ────────────────────────
@@ -612,6 +829,13 @@ void MainWindow::onManageGroups() {
 
 // ── Dialog partajare ─────────────────────────────────
 
+void MainWindow::onShareDialog() {
+    auto index = m_treeView->currentIndex();
+    if (!index.isValid()) return;
+    auto* entity = m_model->entityFromIndex(index);
+    if (entity) showShareDialog(entity);
+}
+
 void MainWindow::showShareDialog(FileSystemEntity* entity) {
     if (!entity) return;
 
@@ -622,7 +846,7 @@ void MainWindow::showShareDialog(FileSystemEntity* entity) {
 
     QDialog dialog(this);
     dialog.setWindowTitle(QString("Partajare — %1").arg(QString::fromStdString(entity->getName())));
-    dialog.setFixedSize(400, 460);
+    dialog.setFixedSize(400, 500);
 
     auto* layout = new QVBoxLayout(&dialog);
     layout->setContentsMargins(16, 16, 16, 16);
@@ -634,20 +858,45 @@ void MainWindow::showShareDialog(FileSystemEntity* entity) {
     auto* listWidget = new QListWidget(&dialog);
     listWidget->setSelectionMode(QAbstractItemView::NoSelection);
 
+    // 1. Incarcam UTILIZATORII
     auto allUsers = m_auth.getAllUsers();
-
     std::vector<std::string> alreadyShared = m_fm.getSharedWithList(entity->getId());
 
     for (const auto& [id, uname] : allUsers) {
         if (uname == m_currentUser) continue;
 
-        auto* item = new QListWidgetItem(QString::fromStdString(uname), listWidget);
+        auto* item = new QListWidgetItem(QString("👤 ") + QString::fromStdString(uname), listWidget);
         item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
 
         bool isShared = std::find(alreadyShared.begin(), alreadyShared.end(), uname) != alreadyShared.end();
         item->setCheckState(isShared ? Qt::Checked : Qt::Unchecked);
 
         if (isShared) item->setForeground(QColor(0, 120, 215));
+        item->setData(Qt::UserRole, "USER");
+        item->setData(Qt::UserRole + 1, QString::fromStdString(uname));
+    }
+
+    // 2. Incarcam GRUPURILE (modificat pentru a retine salvarea)
+    auto allGroups = m_auth.getAllGroups();
+    for (const auto& gName : allGroups) {
+        auto* item = new QListWidgetItem(QString("👥 [Grup] ") + QString::fromStdString(gName), listWidget);
+        item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
+
+        auto members = m_auth.getUsersInGroup(gName);
+        bool allShared = (!members.empty()); // Verificam daca toti membrii au primit deja share
+
+        for (const auto& member : members) {
+            if (member != m_currentUser && std::find(alreadyShared.begin(), alreadyShared.end(), member) == alreadyShared.end()) {
+                allShared = false;
+                break;
+            }
+        }
+
+        // Daca toti membrii grupului au acces, grupul va aparea BIFAT (Salvat)
+        item->setCheckState(allShared ? Qt::Checked : Qt::Unchecked);
+        item->setForeground(QColor(0, 150, 0));
+        item->setData(Qt::UserRole, "GROUP");
+        item->setData(Qt::UserRole + 1, QString::fromStdString(gName));
     }
 
     if (listWidget->count() == 0) listWidget->addItem("Nu exista alti utilizatori inregistrati.");
@@ -655,7 +904,7 @@ void MainWindow::showShareDialog(FileSystemEntity* entity) {
 
     auto* permGroup  = new QGroupBox("Nivel acces acordat", &dialog);
     auto* permLayout = new QVBoxLayout(permGroup);
-    auto* canReadCheck  = new QCheckBox("Poate Citi",     permGroup);
+    auto* canReadCheck  = new QCheckBox("Poate Citi",      permGroup);
     auto* canWriteCheck = new QCheckBox("Poate Modifica", permGroup);
     canReadCheck->setChecked(true);
     permLayout->addWidget(canReadCheck);
@@ -678,25 +927,55 @@ void MainWindow::showShareDialog(FileSystemEntity* entity) {
             auto* item = listWidget->item(i);
             if (!item) continue;
 
-            std::string uname = item->text().toStdString();
+            QString type = item->data(Qt::UserRole).toString();
+            QString name = item->data(Qt::UserRole + 1).toString();
             bool isChecked = (item->checkState() == Qt::Checked);
-            bool wasShared = std::find(alreadyShared.begin(), alreadyShared.end(), uname) != alreadyShared.end();
 
-            if (isChecked && !wasShared) {
-                try {
-                    m_fm.shareEntity(entity->getId(), uname);
-                    m_fm.addUserToGroup(entity->getId(), uname);
-                    m_fm.setPermission(entity->getId(), uname, canReadCheck->isChecked(), canWriteCheck->isChecked());
-                    sharedCount++;
-                } catch (...) {}
-            } else if (!isChecked && wasShared) {
-                try {
-                    m_fm.revokeShare(entity->getId(), uname);
-                    m_fm.removeUserFromGroup(entity->getId(), uname);
-                } catch (...) {}
+            if (type == "USER") {
+                std::string uname = name.toStdString();
+                bool wasShared = std::find(alreadyShared.begin(), alreadyShared.end(), uname) != alreadyShared.end();
+
+                if (isChecked && !wasShared) {
+                    try {
+                        m_fm.shareEntity(entity->getId(), uname);
+                        m_fm.addUserToGroup(entity->getId(), uname);
+                        m_fm.setPermission(entity->getId(), uname, canReadCheck->isChecked(), canWriteCheck->isChecked());
+                        sharedCount++;
+                    } catch (...) {}
+                } else if (!isChecked && wasShared) {
+                    try {
+                        m_fm.revokeShare(entity->getId(), uname);
+                        m_fm.removeUserFromGroup(entity->getId(), uname);
+                    } catch (...) {}
+                }
+            }
+            else if (type == "GROUP") {
+                auto members = m_auth.getUsersInGroup(name.toStdString());
+                for (const auto& member : members) {
+                    if (member != m_currentUser) {
+                        bool wasShared = std::find(alreadyShared.begin(), alreadyShared.end(), member) != alreadyShared.end();
+
+                        // Daca bifam grupul si nu avea share
+                        if (isChecked && !wasShared) {
+                            try {
+                                m_fm.shareEntity(entity->getId(), member);
+                                m_fm.addUserToGroup(entity->getId(), member);
+                                m_fm.setPermission(entity->getId(), member, canReadCheck->isChecked(), canWriteCheck->isChecked());
+                                sharedCount++;
+                            } catch (...) {}
+                        }
+                        // Daca DEBIFAM grupul si inainte avea share
+                        else if (!isChecked && wasShared) {
+                            try {
+                                m_fm.revokeShare(entity->getId(), member);
+                                m_fm.removeUserFromGroup(entity->getId(), member);
+                            } catch (...) {}
+                        }
+                    }
+                }
             }
         }
-        logEvent("SHARE", entity->getName() + " -> " + std::to_string(sharedCount) + " useri noi");
+        logEvent("SHARE", entity->getName() + " -> aplicat pentru useri noi");
         dialog.accept();
     });
 
@@ -707,6 +986,13 @@ void MainWindow::showShareDialog(FileSystemEntity* entity) {
 }
 
 // ── Dialog proprietati ───────────────────────────────
+
+void MainWindow::onProperties() {
+    auto index = m_treeView->currentIndex();
+    if (!index.isValid()) return;
+    auto* entity = m_model->entityFromIndex(index);
+    if (entity) showPropertiesDialog(entity);
+}
 
 void MainWindow::showPropertiesDialog(FileSystemEntity* entity) {
     if (!entity) return;
@@ -812,124 +1098,7 @@ void MainWindow::showPropertiesDialog(FileSystemEntity* entity) {
     dialog.exec();
 }
 
-// ── Context menu ─────────────────────────────────────
-
-void MainWindow::onContextMenu(const QPoint& pos) {
-    QModelIndex index = m_treeView->indexAt(pos);
-    QMenu contextMenu(this);
-
-    QAction* newFileAction   = contextMenu.addAction("📄 Fisier nou");
-    QAction* newFolderAction = contextMenu.addAction("📁 Folder nou");
-    contextMenu.addSeparator();
-
-    QAction* openExternalAction = nullptr;
-    QAction* renameAction       = nullptr;
-    QAction* deleteAction       = nullptr;
-    QAction* shareAction        = nullptr;
-    QAction* propertiesAction   = nullptr;
-
-    FileSystemEntity* entity = nullptr;
-
-    if (index.isValid()) {
-        entity = m_model->entityFromIndex(index);
-        if (entity) {
-            if (!entity->isFolder()) {
-                openExternalAction = contextMenu.addAction("🖥 Deschide extern");
-                contextMenu.addSeparator();
-            }
-
-            renameAction = contextMenu.addAction("✏ Redenumire (F2)");
-
-            deleteAction = contextMenu.addAction("🗑 Sterge");
-            bool canWrite = (entity->getOwnerUser() == m_currentUser) || m_fm.checkPermission(entity->getId(), m_currentUser, "write");
-            if (!canWrite) {
-                deleteAction->setEnabled(false);
-                deleteAction->setToolTip("Nu aveti permisiunea de scriere!");
-            }
-
-            contextMenu.addSeparator();
-
-            shareAction = contextMenu.addAction("🔗 Partajare...");
-            if (entity->getOwnerUser() != m_currentUser) {
-                shareAction->setEnabled(false);
-                shareAction->setToolTip("Doar proprietarul poate partaja!");
-            }
-
-            propertiesAction = contextMenu.addAction("⚙ Proprietati");
-        }
-    }
-
-    QAction* selected = contextMenu.exec(m_treeView->viewport()->mapToGlobal(pos));
-    if (!selected) return;
-
-    if (selected == newFileAction)   { onNewFile();   return; }
-    if (selected == newFolderAction) { onNewFolder(); return; }
-    if (renameAction && selected == renameAction) { onRename(); return; }
-    if (deleteAction && selected == deleteAction) { onDelete(); return; }
-    if (openExternalAction && selected == openExternalAction) { onOpenExternal(); return; }
-    if (shareAction && selected == shareAction) { showShareDialog(entity); return; }
-    if (propertiesAction && selected == propertiesAction) { showPropertiesDialog(entity); return; }
-}
-
-// ── Sloturi dialog ───────────────────────────────────
-
-void MainWindow::onProperties() {
-    auto index = m_treeView->currentIndex();
-    if (!index.isValid()) return;
-    auto* entity = m_model->entityFromIndex(index);
-    if (entity) showPropertiesDialog(entity);
-}
-
-void MainWindow::onShareDialog() {
-    auto index = m_treeView->currentIndex();
-    if (!index.isValid()) return;
-    auto* entity = m_model->entityFromIndex(index);
-    if (entity) showShareDialog(entity);
-}
-
-// ── FIX: Trigger UI ca sageata sa faca toggle la actiunile din Meniu
-
-void MainWindow::onSortByName() {
-    if (m_treeView->header()->sortIndicatorSection() == 0) {
-        Qt::SortOrder next = (m_treeView->header()->sortIndicatorOrder() == Qt::AscendingOrder) ? Qt::DescendingOrder : Qt::AscendingOrder;
-        m_treeView->header()->setSortIndicator(0, next);
-    } else {
-        m_treeView->header()->setSortIndicator(0, Qt::AscendingOrder);
-    }
-}
-
-void MainWindow::onSortBySize() {
-    if (m_treeView->header()->sortIndicatorSection() == 2) {
-        Qt::SortOrder next = (m_treeView->header()->sortIndicatorOrder() == Qt::AscendingOrder) ? Qt::DescendingOrder : Qt::AscendingOrder;
-        m_treeView->header()->setSortIndicator(2, next);
-    } else {
-        m_treeView->header()->setSortIndicator(2, Qt::AscendingOrder);
-    }
-}
-
-void MainWindow::onSortByDate() {
-    if (m_treeView->header()->sortIndicatorSection() == 3) {
-        Qt::SortOrder next = (m_treeView->header()->sortIndicatorOrder() == Qt::AscendingOrder) ? Qt::DescendingOrder : Qt::AscendingOrder;
-        m_treeView->header()->setSortIndicator(3, next);
-    } else {
-        m_treeView->header()->setSortIndicator(3, Qt::AscendingOrder);
-    }
-}
-
-// ── Logger ───────────────────────────────────────────
-
-void MainWindow::onShowLogs() {
-    if (m_logConsole) m_logConsole->show();
-}
-
-void MainWindow::onExportLogs() {
-    if (m_logger) {
-        m_logger->exportLogs("export_logs.txt");
-        QMessageBox::information(this, "Export", "Log-urile au fost exportate in 'export_logs.txt'!");
-    }
-}
-
-// ── Helper ───────────────────────────────────────────
+// ── Preview & Utilitare ──────────────────────────────
 
 void MainWindow::showPreview(FileSystemEntity* entity) {
     if (!entity) return;
@@ -963,7 +1132,16 @@ void MainWindow::showPreview(FileSystemEntity* entity) {
     } else {
         auto* tf = dynamic_cast<TextFile*>(entity);
         if (tf) {
-            info += "<b>Tip:</b> Fisier text<br><hr>";
+            QString name = QString::fromStdString(entity->getName());
+            QString docType = "Fisier text/Document";
+
+            // Detectam extensia pentru a afisa tipul corect
+            if (name.endsWith(".docx", Qt::CaseInsensitive)) docType = "Document Microsoft Word (.docx)";
+            else if (name.endsWith(".pptx", Qt::CaseInsensitive)) docType = "Prezentare PowerPoint (.pptx)";
+            else if (name.endsWith(".xlsx", Qt::CaseInsensitive)) docType = "Registru Excel (.xlsx)";
+            else if (name.endsWith(".pdf", Qt::CaseInsensitive)) docType = "Document PDF (.pdf)";
+
+            info += "<b>Tip:</b> " + docType + "<br><hr>";
             info += "<pre>" + QString::fromStdString(tf->read()) + "</pre>";
 
             auto shared = m_fm.getSharedWithList(entity->getId());
@@ -1003,5 +1181,43 @@ void MainWindow::logEvent(const std::string& action, const std::string& path) {
         if (m_logConsole) {
             m_logConsole->append(QString::fromStdString(msg));
         }
+    }
+}
+
+void MainWindow::onShowLogs() {
+    if (m_logConsole) m_logConsole->show();
+}
+
+void MainWindow::onExportLogs() {
+    if (m_logger) {
+        m_logger->exportLogs("export_logs.txt");
+        QMessageBox::information(this, "Export", "Log-urile au fost exportate in 'export_logs.txt'!");
+    }
+}
+
+void MainWindow::onSortByName() {
+    if (m_treeView->header()->sortIndicatorSection() == 0) {
+        Qt::SortOrder next = (m_treeView->header()->sortIndicatorOrder() == Qt::AscendingOrder) ? Qt::DescendingOrder : Qt::AscendingOrder;
+        m_treeView->header()->setSortIndicator(0, next);
+    } else {
+        m_treeView->header()->setSortIndicator(0, Qt::AscendingOrder);
+    }
+}
+
+void MainWindow::onSortBySize() {
+    if (m_treeView->header()->sortIndicatorSection() == 2) {
+        Qt::SortOrder next = (m_treeView->header()->sortIndicatorOrder() == Qt::AscendingOrder) ? Qt::DescendingOrder : Qt::AscendingOrder;
+        m_treeView->header()->setSortIndicator(2, next);
+    } else {
+        m_treeView->header()->setSortIndicator(2, Qt::AscendingOrder);
+    }
+}
+
+void MainWindow::onSortByDate() {
+    if (m_treeView->header()->sortIndicatorSection() == 3) {
+        Qt::SortOrder next = (m_treeView->header()->sortIndicatorOrder() == Qt::AscendingOrder) ? Qt::DescendingOrder : Qt::AscendingOrder;
+        m_treeView->header()->setSortIndicator(3, next);
+    } else {
+        m_treeView->header()->setSortIndicator(3, Qt::AscendingOrder);
     }
 }
