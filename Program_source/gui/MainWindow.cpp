@@ -2,6 +2,8 @@
 #include "../filesystem/TextFile.h"
 #include "../filesystem/BinaryFile.h"
 #include "../filesystem/SharedFolder.h"
+#include "../services/IFileManager.h"
+#include "../services/IAuthService.h"
 #include <QMenuBar>
 #include <QMenu>
 #include <QAction>
@@ -22,7 +24,7 @@
 #include <fstream>
 #include <algorithm>
 
-MainWindow::MainWindow(Folder* root, const std::string& username, FileManager& fm, AuthService& auth, QWidget* parent)
+MainWindow::MainWindow(Folder* root, const std::string& username, IFileManager& fm, IAuthService& auth, QWidget* parent)
     : QMainWindow(parent), m_root(root), m_currentUser(username), m_fm(fm), m_auth(auth),
     m_model(nullptr), m_searchEngine(), m_pathResolver(nullptr), m_logger(nullptr),
     m_currentSort(SortManager::SortCrit::NAME_ASC), m_treeView(nullptr), m_previewPane(nullptr),

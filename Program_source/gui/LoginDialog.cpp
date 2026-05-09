@@ -5,7 +5,7 @@
 #include <QGroupBox>
 #include <QMessageBox>
 
-LoginDialog::LoginDialog(AuthService& auth, QWidget* parent)
+LoginDialog::LoginDialog(IAuthService& auth, QWidget* parent)
     : QDialog(parent), m_auth(auth)
 {
     setWindowTitle("ATMosFS — Autentificare");

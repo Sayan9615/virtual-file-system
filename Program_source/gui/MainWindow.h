@@ -27,8 +27,8 @@
 #include "../services/SearchEngine.h"
 #include "../services/PathResolver.h"
 #include "../services/SortManager.h"
-#include "../services/FileManager.h"
-#include "../services/AuthService.h"
+#include "../services/IFileManager.h"
+#include "../services/IAuthService.h"
 #include "../logger/TimestampedLogger.h"
 #include "FileSystemModel.h"
 
@@ -41,8 +41,8 @@ protected:
 public:
     explicit MainWindow(Folder* root,
                         const std::string& username,
-                        FileManager& fm,
-                        AuthService& auth,
+                        IFileManager& fm,
+                        IAuthService& auth,
                         QWidget* parent = nullptr);
 
 private slots:
@@ -85,8 +85,8 @@ private:
 
     Folder*      m_root;
     std::string  m_currentUser;
-    FileManager& m_fm;
-    AuthService& m_auth;
+    IFileManager& m_fm;
+    IAuthService& m_auth;
 
     FileSystemModel*          m_model;
     SearchEngine              m_searchEngine;

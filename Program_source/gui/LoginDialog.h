@@ -6,7 +6,7 @@
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QFormLayout>
-#include "../services/AuthService.h"
+#include "../services/IAuthService.h"
 #include "../exceptions/AuthException.h"
 #include "../exceptions/AppException.h"
 
@@ -14,7 +14,7 @@ class LoginDialog : public QDialog {
     Q_OBJECT
 
 public:
-    explicit LoginDialog(AuthService& auth, QWidget* parent = nullptr);
+    explicit LoginDialog(IAuthService& auth, QWidget* parent = nullptr);
 
     // returneaza username-ul dupa login reusit
     QString getUsername() const;
@@ -30,7 +30,7 @@ private:
     void showSuccess(const QString& message);
 
     // ── Date ─────────────────────────────────────────
-    AuthService& m_auth;
+    IAuthService& m_auth;
     QString      m_loggedUsername;
 
     // ── UI ───────────────────────────────────────────

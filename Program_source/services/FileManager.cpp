@@ -317,7 +317,7 @@ int FileManager::getParentId(int entityId) const {
     return parentId;
 }
 
-std::vector<std::string> FileManager::getSharedWithList(int entityId) const {
+std::vector<std::string> FileManager::getSharedWithList(int entityId) {
     const char* sql = "SELECT shared_with FROM entities WHERE id = ?;";
     sqlite3_stmt* stmt = nullptr;
     std::vector<std::string> users;
@@ -389,7 +389,7 @@ bool FileManager::revokeShare(int entityId, const std::string& username) {
     return success;
 }
 
-bool FileManager::isSharedWith(int entityId, const std::string& username) const {
+bool FileManager::isSharedWith(int entityId, const std::string& username) {
     int currentId = entityId;
     while (currentId > 0) {
         auto users = getSharedWithList(currentId);
