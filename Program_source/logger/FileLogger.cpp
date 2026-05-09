@@ -20,10 +20,11 @@ void FileLogger::log(const std::string& event) {
     logFile.flush();
 }
 
-void FileLogger::exportTo(const std::string& path) const {
-    exportLogs(path);
+void FileLogger::log_timed(const std::string& event){
+    Logger::log_timed(event);
+    logFile <<Logger::get_time()<<" "<<event << "\n";
 }
 
-std::string FileLogger::getFormat() const {
-    return ".log";
+void FileLogger::exportTo(const std::string& path) const {
+    exportLogs(path);
 }

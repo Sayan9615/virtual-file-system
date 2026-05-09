@@ -5,7 +5,7 @@
 EventLog::EventLog(EventType type, const std::string& username,
                    const std::string& message, iLogger& logger)
     : type(type), username(username), message(message), logger(&logger) {
-    this->logger->log(serialize());
+    this->logger->log_timed(serialize());
 }
 
 std::string EventLog::serialize() const {
