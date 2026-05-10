@@ -211,6 +211,14 @@ void handleClient(SOCKET clientSocket) {
                     response += "|" + to_string(id) + "|" + name;
                 }
             }
+            // 🔥 Adaugat: AUTH_DELETE_USER
+            else if (cmd == "AUTH_DELETE_USER") {
+                if (parts.size() < 2) { response = "ERR|missing args"; }
+                else {
+                    bool ok = g_auth->deleteUser(parts[1]);
+                    response = ok ? "OK" : "ERR|delete user failed";
+                }
+            }
             else if (cmd == "AUTH_CREATE_GROUP") {
                 if (parts.size() < 2) { response = "ERR|missing args"; }
                 else {
@@ -288,7 +296,6 @@ void handleClient(SOCKET clientSocket) {
                     response = ok ? "OK" : "ERR|delete failed";
                 }
             }
-            // 🔥 Adăugat: FM_UPDATE_TEXT_FILE
             else if (cmd == "FM_UPDATE_TEXT_FILE") {
                 if (parts.size() < 4) { response = "ERR|missing args"; }
                 else {

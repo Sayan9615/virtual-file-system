@@ -11,11 +11,11 @@
 #include <QCloseEvent>
 #include <QMenu>
 #include <QShortcut>
-
 #include "../filesystem/Folder.h"
 #include "../services/IFileManager.h"
 #include "../services/IAuthService.h"
 #include "../services/SearchEngine.h"
+#include "../services/SortManager.h"
 #include "FileSystemModel.h"
 #include "PathResolver.h"
 #include "../logger/TimestampedLogger.h"
@@ -24,7 +24,11 @@ class MainWindow : public QMainWindow {
     Q_OBJECT
 
 public:
-    MainWindow(Folder* root, const std::string& username, IFileManager& fm, IAuthService& auth, QWidget* parent = nullptr);
+    MainWindow(Folder* root,
+               const std::string& username,
+               IFileManager& fm,
+               IAuthService& auth,
+               QWidget* parent = nullptr);
     ~MainWindow() = default;
 
 protected:
@@ -38,8 +42,8 @@ private slots:
     void onEditFile();
     void onOpenExternal(FileSystemEntity* entityOverride = nullptr);
     void onShareDialog();
-    void onManageGroups();
     void onProperties();
+    void onAdminPanel();          // ← NOU: panou admin
     void onSortByName();
     void onSortBySize();
     void onSortByDate();
@@ -56,7 +60,8 @@ private:
     void setupUI();
     void showPreview(FileSystemEntity* entity);
     void updateStatusBar(FileSystemEntity* entity);
-    void logEvent(const std::string& action, const std::string& path);
+    void logEvent(const std::string& action,
+                  const std::string& path = "");
     bool checkWritePermission(FileSystemEntity* entity);
     bool checkReadPermission(FileSystemEntity* entity);
     void showShareDialog(FileSystemEntity* entity);
@@ -65,24 +70,26 @@ private:
     void saveSystemState();
     void loadSystemState();
 
-    // Membrii
-    Folder* m_root;
-    std::string m_currentUser;
+    // ── Date ─────────────────────────────────────────
+    Folder*       m_root;
+    std::string   m_currentUser;
     IFileManager& m_fm;
     IAuthService& m_auth;
-    FileSystemModel* m_model;
-    PathResolver* m_pathResolver;
-    TimestampedLogger* m_logger;
 
-    // Elemente UI
-    QTreeView* m_treeView;
-    QTextEdit* m_previewPane;
-    QLineEdit* m_searchBar;
-    QLineEdit* m_addressBar;
-    QListWidget* m_searchResults;
-    QTextEdit* m_logConsole;
-    QLabel* m_statusLabel;
-    QSplitter* m_mainSplitter;
+    // ── Servicii ─────────────────────────────────────
+    FileSystemModel*      m_model;
+    PathResolver*         m_pathResolver;
+    TimestampedLogger*    m_logger;
     SortManager::SortCrit m_currentSort;
-    SearchEngine m_searchEngine;
+    SearchEngine          m_searchEngine;
+
+    // ── UI ───────────────────────────────────────────
+    QTreeView*   m_treeView;
+    QTextEdit*   m_previewPane;
+    QLineEdit*   m_searchBar;
+    QLineEdit*   m_addressBar;
+    QListWidget* m_searchResults;
+    QTextEdit*   m_logConsole;
+    QLabel*      m_statusLabel;
+    QSplitter*   m_mainSplitter;
 };
