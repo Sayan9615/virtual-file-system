@@ -79,7 +79,6 @@ void MainWindow::setupMenuBar() {
     QAction* sortDateAction = viewMenu->addAction("Sortare dupa data");
 
     QMenu* logMenu            = menuBar()->addMenu("Log");
-    QAction* showLogsAction   = logMenu->addAction("Afiseaza log-uri");
     QAction* exportLogsAction = logMenu->addAction("Export log-uri");
 
     connect(exitAction,       &QAction::triggered, qApp, &QApplication::quit);
@@ -94,7 +93,6 @@ void MainWindow::setupMenuBar() {
     connect(sortNameAction,   &QAction::triggered, this, &MainWindow::onSortByName);
     connect(sortSizeAction,   &QAction::triggered, this, &MainWindow::onSortBySize);
     connect(sortDateAction,   &QAction::triggered, this, &MainWindow::onSortByDate);
-    connect(showLogsAction,   &QAction::triggered, this, &MainWindow::onShowLogs);
     connect(exportLogsAction, &QAction::triggered, this, &MainWindow::onExportLogs);
 }
 
@@ -200,7 +198,12 @@ void MainWindow::setupUI() {
     m_mainSplitter->setStretchFactor(1, 2);
 
     m_statusLabel = new QLabel("0 elemente | 0 B", this);
-    m_statusLabel->setStyleSheet("padding: 4px 8px; background-color: #F0F0F0; border-top: 1px solid #CCCCCC;");
+    m_statusLabel->setStyleSheet(
+        "padding: 4px 10px;"
+        "background-color: #2B2B2B;"
+        "color: #B0B0B0;"
+        "border-top: 1px solid #444444;"
+        "font-size: 11px;");
 
     mainLayout->addWidget(topBar);
     mainLayout->addWidget(m_mainSplitter, 1);
@@ -214,6 +217,12 @@ void MainWindow::setupUI() {
     connect(m_searchBar, &QLineEdit::returnPressed, this, &MainWindow::onSearchTriggered);
     connect(m_addressBar, &QLineEdit::returnPressed, this, &MainWindow::onAddressBarEntered);
     connect(m_searchResults, &QListWidget::itemClicked, this, &MainWindow::onSearchResultClicked);
+    connect(m_searchResults, &QListWidget::itemDoubleClicked, this, [this](QListWidgetItem* item) {
+        if (!item) return;
+        QString path = item->data(Qt::UserRole).toString();
+        auto entity = m_pathResolver->resolvePath(path.toStdString());
+        if (entity) showEditDialog(entity.get());
+    });
 
     connect(m_treeView, &QTreeView::doubleClicked, this, [this](const QModelIndex& index) {
         if (!index.isValid()) return;
@@ -314,7 +323,7 @@ void MainWindow::onSearchTriggered() {
     if (query.isEmpty()) return;
 
     m_searchResults->clear();
-    auto results = m_searchEngine.searchByName(m_root, query.toStdString());
+    auto results = m_searchEngine.search(m_root, query.toStdString(), true, true);
 
     if (results.empty()) {
         m_searchResults->addItem("Niciun rezultat pentru: " + query);
@@ -344,6 +353,12 @@ void MainWindow::onSearchResultClicked(QListWidgetItem* item) {
     if (entity) showPreview(entity.get());
 }
 
+// Forward declarations for Office template builders (defined later in this file)
+static QByteArray createMinimalDocx();
+static QByteArray createMinimalXlsx();
+static QByteArray createMinimalPptx();
+static bool isBinaryOffice(const QString& name);
+
 // ── Creare fisier FARA POPUP LOCATIE ─────────────────
 
 void MainWindow::onNewFile() {
@@ -369,25 +384,76 @@ void MainWindow::onNewFile() {
     int parentId = parentFolder->getId();
     if (parentId <= 0) parentId = 1;
 
-    bool ok;
-    QString name = QInputDialog::getText(this, "Fisier nou", "Numele fisierului (ex: text.txt, proiect.docx):",
-                                         QLineEdit::Normal, QString("Document_%1.txt").arg(parentFolder->getChildCount() + 1), &ok);
+    // ── Dialog cu selector de tip fisier ─────────────────────────
+    QDialog typeDialog(this);
+    typeDialog.setWindowTitle("Fisier nou");
+    typeDialog.setFixedSize(380, 160);
+    auto* dlgLayout  = new QVBoxLayout(&typeDialog);
+    auto* formLayout = new QFormLayout();
 
-    if (!ok || name.trimmed().isEmpty()) return;
-    name = name.trimmed();
+    auto* typeCombo = new QComboBox(&typeDialog);
+    typeCombo->addItem("Document Text (.txt)");
+    typeCombo->addItem("Document Word (.docx)");
+    typeCombo->addItem("Registru Excel (.xlsx)");
+    typeCombo->addItem("Prezentare PowerPoint (.pptx)");
+    const QStringList typeExts = {"txt", "docx", "xlsx", "pptx"};
 
-    if (parentFolder->hasChild(name.toStdString())) {
-        QMessageBox::warning(this, "Eroare", QString("Exista deja un element cu numele '%1' in acest folder!").arg(name));
-        return;
+    auto* nameEdit = new QLineEdit(&typeDialog);
+    nameEdit->setText(QString("Document_%1.txt").arg(parentFolder->getChildCount() + 1));
+
+    connect(typeCombo, &QComboBox::currentIndexChanged, &typeDialog, [&](int idx) {
+        if (idx < 0 || idx >= typeExts.size()) return;
+        QString ext  = typeExts[idx];
+        QString base = nameEdit->text().trimmed();
+        int dot = base.lastIndexOf('.');
+        if (dot >= 0) base = base.left(dot);
+        if (base.isEmpty()) base = QString("Document_%1").arg(parentFolder->getChildCount() + 1);
+        nameEdit->setText(base + "." + ext);
+    });
+
+    formLayout->addRow("Tip fisier:", typeCombo);
+    formLayout->addRow("Nume:",       nameEdit);
+    dlgLayout->addLayout(formLayout);
+
+    auto* btnRow   = new QHBoxLayout();
+    auto* cancelB  = new QPushButton("Anuleaza", &typeDialog);
+    auto* createB  = new QPushButton("Creeaza",  &typeDialog);
+    createB->setDefault(true);
+    btnRow->addStretch(); btnRow->addWidget(cancelB); btnRow->addWidget(createB);
+    dlgLayout->addLayout(btnRow);
+    connect(cancelB, &QPushButton::clicked, &typeDialog, &QDialog::reject);
+    connect(createB, &QPushButton::clicked, &typeDialog, &QDialog::accept);
+
+    if (typeDialog.exec() != QDialog::Accepted) return;
+
+    QString name = nameEdit->text().trimmed();
+    if (name.isEmpty()) return;
+
+    for (const auto& child : parentFolder->getChildren()) {
+        if (QString::fromStdString(child->getName()).compare(name, Qt::CaseInsensitive) == 0) {
+            QMessageBox::warning(this, "Eroare",
+                QString("Exista deja un element cu numele '%1' in acest folder!").arg(name));
+            return;
+        }
+    }
+
+    // Continut initial: template valid pentru fisiere Office, spatiu pentru text
+    std::string initialContent = " ";
+    {
+        QByteArray tpl;
+        if (name.endsWith(".docx", Qt::CaseInsensitive))      tpl = createMinimalDocx();
+        else if (name.endsWith(".xlsx", Qt::CaseInsensitive)) tpl = createMinimalXlsx();
+        else if (name.endsWith(".pptx", Qt::CaseInsensitive)) tpl = createMinimalPptx();
+        if (!tpl.isEmpty()) initialContent = tpl.toBase64().toStdString();
     }
 
     try {
-        bool saved = m_fm.createTextFile(name.toStdString(), m_currentUser, "users", " ", parentId);
+        bool saved = m_fm.createTextFile(name.toStdString(), m_currentUser, "users", initialContent, parentId);
         if (!saved) { QMessageBox::warning(this, "Eroare", "Eroare la salvare in baza de date."); return; }
 
         int newId = m_fm.getEntityId(name.toStdString(), parentId);
 
-        auto newFile = std::make_shared<TextFile>(name.toStdString(), m_currentUser, "users", " ");
+        auto newFile = std::make_shared<TextFile>(name.toStdString(), m_currentUser, "users", initialContent);
         if (newId != -1) newFile->setId(newId);
 
         parentFolder->addChild(newFile);
@@ -483,12 +549,12 @@ void MainWindow::showEditDialog(FileSystemEntity* entity) {
         name.find(".pptx") != std::string::npos ||
         name.find(".xlsx") != std::string::npos ||
         name.find(".pdf") != std::string::npos) {
-        onOpenExternal();
+        onOpenExternal(entity);
         return;
     }
 
     auto* tf = dynamic_cast<TextFile*>(entity);
-    if (!tf) { onOpenExternal(); return; }
+    if (!tf) { onOpenExternal(entity); return; }
 
     if (!checkWritePermission(entity)) return;
 
@@ -534,70 +600,299 @@ void MainWindow::showEditDialog(FileSystemEntity* entity) {
     dialog.exec();
 }
 
-// ── Deschidere si Sincronizare Office (.docx) ────────
+// ── Helper: detecteaza fisiere binare Office ──────────
 
-void MainWindow::onOpenExternal() {
-    auto index = m_treeView->currentIndex();
-    if (!index.isValid()) return;
+static bool isBinaryOffice(const QString& name) {
+    return name.endsWith(".docx", Qt::CaseInsensitive) ||
+           name.endsWith(".pptx", Qt::CaseInsensitive) ||
+           name.endsWith(".xlsx", Qt::CaseInsensitive);
+}
 
-    auto* entity = m_model->entityFromIndex(index);
+// ── ZIP builder + minimal Office templates ───────────────────────
+
+static void zipU16(QByteArray& ba, quint16 v) { ba.append(char(v&0xFF)); ba.append(char((v>>8)&0xFF)); }
+static void zipU32(QByteArray& ba, quint32 v) { ba.append(char(v&0xFF)); ba.append(char((v>>8)&0xFF)); ba.append(char((v>>16)&0xFF)); ba.append(char((v>>24)&0xFF)); }
+
+static quint32 zipCrc32(const QByteArray& d) {
+    static quint32 t[256]; static bool ok=false;
+    if (!ok) { for (quint32 i=0;i<256;i++){quint32 c=i;for(int j=0;j<8;j++)c=(c&1)?(0xEDB88320u^(c>>1)):(c>>1);t[i]=c;} ok=true; }
+    quint32 c=0xFFFFFFFFu;
+    for (unsigned char b : d) c=t[(c^b)&0xFF]^(c>>8);
+    return c^0xFFFFFFFFu;
+}
+
+struct ZipFile { QString name; QByteArray data; };
+
+static QByteArray buildZip(const std::vector<ZipFile>& files) {
+    QByteArray local; std::vector<quint32> offs, crcs;
+    for (const auto& f : files) {
+        offs.push_back((quint32)local.size());
+        quint32 crc=zipCrc32(f.data); crcs.push_back(crc);
+        quint32 sz=(quint32)f.data.size(); QByteArray nm=f.name.toUtf8();
+        zipU32(local,0x04034B50u); zipU16(local,20); zipU16(local,0); zipU16(local,0);
+        zipU16(local,0); zipU16(local,0);
+        zipU32(local,crc); zipU32(local,sz); zipU32(local,sz);
+        zipU16(local,(quint16)nm.size()); zipU16(local,0);
+        local.append(nm); local.append(f.data);
+    }
+    quint32 cdOff=(quint32)local.size(); QByteArray cd;
+    for (size_t i=0;i<files.size();i++) {
+        QByteArray nm=files[i].name.toUtf8(); quint32 sz=(quint32)files[i].data.size();
+        zipU32(cd,0x02014B50u); zipU16(cd,20); zipU16(cd,20); zipU16(cd,0); zipU16(cd,0);
+        zipU16(cd,0); zipU16(cd,0);
+        zipU32(cd,crcs[i]); zipU32(cd,sz); zipU32(cd,sz);
+        zipU16(cd,(quint16)nm.size()); zipU16(cd,0); zipU16(cd,0);
+        zipU16(cd,0); zipU16(cd,0); zipU32(cd,0); zipU32(cd,offs[i]);
+        cd.append(nm);
+    }
+    QByteArray eocd;
+    zipU32(eocd,0x06054B50u); zipU16(eocd,0); zipU16(eocd,0);
+    zipU16(eocd,(quint16)files.size()); zipU16(eocd,(quint16)files.size());
+    zipU32(eocd,(quint32)cd.size()); zipU32(eocd,cdOff); zipU16(eocd,0);
+    return local+cd+eocd;
+}
+
+static QByteArray createMinimalDocx() {
+    std::vector<ZipFile> f;
+    f.push_back({"[Content_Types].xml", QByteArray(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>"
+        "<Types xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\">"
+        "<Default Extension=\"rels\" ContentType=\"application/vnd.openxmlformats-package.relationships+xml\"/>"
+        "<Default Extension=\"xml\" ContentType=\"application/xml\"/>"
+        "<Override PartName=\"/word/document.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml\"/>"
+        "</Types>")});
+    f.push_back({"_rels/.rels", QByteArray(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>"
+        "<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">"
+        "<Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument\" Target=\"word/document.xml\"/>"
+        "</Relationships>")});
+    f.push_back({"word/document.xml", QByteArray(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>"
+        "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\">"
+        "<w:body><w:p><w:r><w:t></w:t></w:r></w:p><w:sectPr/></w:body>"
+        "</w:document>")});
+    f.push_back({"word/_rels/document.xml.rels", QByteArray(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>"
+        "<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"/>")});
+    return buildZip(f);
+}
+
+static QByteArray createMinimalXlsx() {
+    std::vector<ZipFile> f;
+    f.push_back({"[Content_Types].xml", QByteArray(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>"
+        "<Types xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\">"
+        "<Default Extension=\"rels\" ContentType=\"application/vnd.openxmlformats-package.relationships+xml\"/>"
+        "<Default Extension=\"xml\" ContentType=\"application/xml\"/>"
+        "<Override PartName=\"/xl/workbook.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml\"/>"
+        "<Override PartName=\"/xl/worksheets/sheet1.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml\"/>"
+        "<Override PartName=\"/xl/styles.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml\"/>"
+        "</Types>")});
+    f.push_back({"_rels/.rels", QByteArray(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>"
+        "<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">"
+        "<Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument\" Target=\"xl/workbook.xml\"/>"
+        "</Relationships>")});
+    f.push_back({"xl/workbook.xml", QByteArray(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>"
+        "<workbook xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\""
+        " xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\">"
+        "<sheets><sheet name=\"Sheet1\" sheetId=\"1\" r:id=\"rId1\"/></sheets>"
+        "</workbook>")});
+    f.push_back({"xl/_rels/workbook.xml.rels", QByteArray(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>"
+        "<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">"
+        "<Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet\" Target=\"worksheets/sheet1.xml\"/>"
+        "<Relationship Id=\"rId2\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles\" Target=\"styles.xml\"/>"
+        "</Relationships>")});
+    f.push_back({"xl/worksheets/sheet1.xml", QByteArray(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>"
+        "<worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><sheetData/></worksheet>")});
+    f.push_back({"xl/styles.xml", QByteArray(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>"
+        "<styleSheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\">"
+        "<fonts count=\"1\"><font><sz val=\"11\"/><name val=\"Calibri\"/></font></fonts>"
+        "<fills count=\"2\"><fill><patternFill patternType=\"none\"/></fill><fill><patternFill patternType=\"gray125\"/></fill></fills>"
+        "<borders count=\"1\"><border><left/><right/><top/><bottom/><diagonal/></border></borders>"
+        "<cellStyleXfs count=\"1\"><xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\"/></cellStyleXfs>"
+        "<cellXfs count=\"1\"><xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\"/></cellXfs>"
+        "</styleSheet>")});
+    return buildZip(f);
+}
+
+static QByteArray createMinimalPptx() {
+    std::vector<ZipFile> f;
+    f.push_back({"[Content_Types].xml", QByteArray(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>"
+        "<Types xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\">"
+        "<Default Extension=\"rels\" ContentType=\"application/vnd.openxmlformats-package.relationships+xml\"/>"
+        "<Default Extension=\"xml\" ContentType=\"application/xml\"/>"
+        "<Override PartName=\"/ppt/presentation.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml\"/>"
+        "<Override PartName=\"/ppt/slideMasters/slideMaster1.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.presentationml.slideMaster+xml\"/>"
+        "<Override PartName=\"/ppt/slideLayouts/slideLayout1.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml\"/>"
+        "<Override PartName=\"/ppt/slides/slide1.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.presentationml.slide+xml\"/>"
+        "</Types>")});
+    f.push_back({"_rels/.rels", QByteArray(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>"
+        "<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">"
+        "<Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument\" Target=\"ppt/presentation.xml\"/>"
+        "</Relationships>")});
+    f.push_back({"ppt/presentation.xml", QByteArray(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>"
+        "<p:presentation xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\""
+        " xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\">"
+        "<p:sldMasterIdLst><p:sldMasterId id=\"2147483648\" r:id=\"rId1\"/></p:sldMasterIdLst>"
+        "<p:sldIdLst><p:sldId id=\"256\" r:id=\"rId2\"/></p:sldIdLst>"
+        "<p:sldSz cx=\"9144000\" cy=\"6858000\"/><p:notesSz cx=\"6858000\" cy=\"9144000\"/>"
+        "</p:presentation>")});
+    f.push_back({"ppt/_rels/presentation.xml.rels", QByteArray(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>"
+        "<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">"
+        "<Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster\" Target=\"slideMasters/slideMaster1.xml\"/>"
+        "<Relationship Id=\"rId2\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide\" Target=\"slides/slide1.xml\"/>"
+        "</Relationships>")});
+    f.push_back({"ppt/slideMasters/slideMaster1.xml", QByteArray(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>"
+        "<p:sldMaster xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\""
+        " xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\""
+        " xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\">"
+        "<p:cSld><p:bg><p:bgPr><a:solidFill><a:srgbClr val=\"FFFFFF\"/></a:solidFill></p:bgPr></p:bg>"
+        "<p:spTree><p:nvGrpSpPr><p:cNvPr id=\"1\" name=\"\"/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>"
+        "<p:grpSpPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"0\" cy=\"0\"/>"
+        "<a:chOff x=\"0\" y=\"0\"/><a:chExt cx=\"0\" cy=\"0\"/></a:xfrm></p:grpSpPr>"
+        "</p:spTree></p:cSld>"
+        "<p:clrMap bg1=\"lt1\" tx1=\"dk1\" bg2=\"lt2\" tx2=\"dk2\" accent1=\"accent1\" accent2=\"accent2\" accent3=\"accent3\" accent4=\"accent4\" accent5=\"accent5\" accent6=\"accent6\" hlink=\"hlink\" folHlink=\"folHlink\"/>"
+        "<p:sldLayoutIdLst><p:sldLayoutId id=\"2147483649\" r:id=\"rId1\"/></p:sldLayoutIdLst>"
+        "<p:txStyles>"
+        "<p:titleStyle><a:lvl1pPr><a:defRPr lang=\"en-US\"/></a:lvl1pPr></p:titleStyle>"
+        "<p:bodyStyle><a:lvl1pPr><a:defRPr lang=\"en-US\"/></a:lvl1pPr></p:bodyStyle>"
+        "<p:otherStyle><a:lvl1pPr><a:defRPr lang=\"en-US\"/></a:lvl1pPr></p:otherStyle>"
+        "</p:txStyles></p:sldMaster>")});
+    f.push_back({"ppt/slideMasters/_rels/slideMaster1.xml.rels", QByteArray(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>"
+        "<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">"
+        "<Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout\" Target=\"../slideLayouts/slideLayout1.xml\"/>"
+        "</Relationships>")});
+    f.push_back({"ppt/slideLayouts/slideLayout1.xml", QByteArray(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>"
+        "<p:sldLayout xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\""
+        " xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\""
+        " xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\""
+        " type=\"blank\" preserve=\"1\">"
+        "<p:cSld name=\"Blank\"><p:spTree>"
+        "<p:nvGrpSpPr><p:cNvPr id=\"1\" name=\"\"/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>"
+        "<p:grpSpPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"0\" cy=\"0\"/>"
+        "<a:chOff x=\"0\" y=\"0\"/><a:chExt cx=\"0\" cy=\"0\"/></a:xfrm></p:grpSpPr>"
+        "</p:spTree></p:cSld>"
+        "<p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sldLayout>")});
+    f.push_back({"ppt/slideLayouts/_rels/slideLayout1.xml.rels", QByteArray(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>"
+        "<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">"
+        "<Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster\" Target=\"../slideMasters/slideMaster1.xml\"/>"
+        "</Relationships>")});
+    f.push_back({"ppt/slides/slide1.xml", QByteArray(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>"
+        "<p:sld xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\""
+        " xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\""
+        " xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\">"
+        "<p:cSld><p:spTree>"
+        "<p:nvGrpSpPr><p:cNvPr id=\"1\" name=\"\"/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>"
+        "<p:grpSpPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"0\" cy=\"0\"/>"
+        "<a:chOff x=\"0\" y=\"0\"/><a:chExt cx=\"0\" cy=\"0\"/></a:xfrm></p:grpSpPr>"
+        "</p:spTree></p:cSld>"
+        "<p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>")});
+    f.push_back({"ppt/slides/_rels/slide1.xml.rels", QByteArray(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>"
+        "<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">"
+        "<Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout\" Target=\"../slideLayouts/slideLayout1.xml\"/>"
+        "</Relationships>")});
+    return buildZip(f);
+}
+
+// ── Deschidere si Sincronizare Office (.docx/.pptx/.xlsx) ────────
+// Continutul binar e stocat in DB ca base64.
+// La deschidere: decodam base64 -> scriem bytes reali in fisier temp.
+// La sync-back:  citim bytes reali -> encodam base64 -> salvam in DB.
+
+void MainWindow::onOpenExternal(FileSystemEntity* entityOverride) {
+    FileSystemEntity* entity = entityOverride;
+    if (!entity) {
+        auto index = m_treeView->currentIndex();
+        if (!index.isValid()) return;
+        entity = m_model->entityFromIndex(index);
+    }
     if (!entity || entity->isFolder()) return;
     if (!checkReadPermission(entity)) return;
 
+    auto* tf = dynamic_cast<TextFile*>(entity);
+    if (!tf) return;
+
     try {
-        QString safeName = QString::fromStdString(entity->getName());
+        QString fileName = QString::fromStdString(entity->getName());
+        bool binary = isBinaryOffice(fileName);
 
-        if (safeName.endsWith(".docx", Qt::CaseInsensitive) || safeName.endsWith(".pptx", Qt::CaseInsensitive)) {
-            safeName += ".rtf";
-        }
-
-        QString tempPath = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/" + safeName;
+        QString tempPath = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/" + fileName;
         QFile realFile(tempPath);
 
-        if (realFile.open(QIODevice::WriteOnly)) {
-            auto* tf = dynamic_cast<TextFile*>(entity);
-            if (tf) {
-                QByteArray rawData(tf->read().data(), tf->read().length());
-                realFile.write(rawData);
+        if (!realFile.open(QIODevice::WriteOnly)) {
+            QMessageBox::warning(this, "Eroare", "Nu s-a putut crea fisierul temporar!");
+            return;
+        }
+
+        std::string stored = tf->read();
+        if (binary) {
+            QByteArray raw = QByteArray::fromBase64(QString::fromStdString(stored).trimmed().toUtf8());
+            if (raw.isEmpty()) {
+                if (fileName.endsWith(".docx", Qt::CaseInsensitive))      raw = createMinimalDocx();
+                else if (fileName.endsWith(".xlsx", Qt::CaseInsensitive)) raw = createMinimalXlsx();
+                else if (fileName.endsWith(".pptx", Qt::CaseInsensitive)) raw = createMinimalPptx();
             }
-            realFile.close();
+            if (!raw.isEmpty()) realFile.write(raw);
+        } else {
+            realFile.write(QByteArray::fromStdString(stored));
+        }
+        realFile.close();
 
-            QDesktopServices::openUrl(QUrl::fromLocalFile(tempPath));
-            logEvent("OPEN_EXTERNAL", entity->getName());
+        QDesktopServices::openUrl(QUrl::fromLocalFile(tempPath));
+        logEvent("OPEN_EXTERNAL", entity->getName());
 
-            int idToCheck = entity->getId() <= 0 ? 1 : entity->getId();
+        int idToCheck = entity->getId() <= 0 ? 1 : entity->getId();
+        bool canWrite = (entity->getOwnerUser() == m_currentUser) ||
+                        m_fm.checkPermission(idToCheck, m_currentUser, "write");
 
-            if (entity->getOwnerUser() == m_currentUser || m_fm.checkPermission(idToCheck, m_currentUser, "write")) {
-                QMessageBox msgBox(this);
-                msgBox.setWindowTitle("Sincronizare Microsoft Office / Externa");
-                msgBox.setText("Documentul a fost lansat cu succes.\n\n"
-                               "1. Dupa ce ati scris, apasati SAVE in Word (Ctrl+S).\n"
-                               "2. Inchideti Word.\n"
-                               "3. Apasati OK mai jos pentru a prelua si salva in baza noastra de date.");
-                msgBox.setIcon(QMessageBox::Information);
-                msgBox.exec();
+        if (canWrite) {
+            QMessageBox msgBox(this);
+            msgBox.setWindowTitle("Sincronizare");
+            msgBox.setText(QString("Documentul '%1' a fost deschis.\n\n"
+                                   "Editeaza, salveaza (Ctrl+S),\n"
+                                   "inchide aplicatia Office, apoi apasa OK.").arg(fileName));
+            msgBox.setIcon(QMessageBox::Information);
+            msgBox.exec();
 
-                if (realFile.open(QIODevice::ReadOnly)) {
-                    QByteArray newData = realFile.readAll();
-                    realFile.close();
+            if (realFile.open(QIODevice::ReadOnly)) {
+                QByteArray newData = realFile.readAll();
+                realFile.close();
 
-                    std::string newContentStr(newData.constData(), newData.length());
-
-                    if (m_fm.updateTextFile(entity->getId(), newContentStr, m_currentUser)) {
-                        if (tf) tf->write(newContentStr);
-                        m_model->refresh();
-                        showPreview(entity);
-                        m_statusLabel->setText("Sincronizare reusita din Word!");
-                        logEvent("UPDATE_FROM_EXTERNAL", entity->getName());
-                    } else {
-                        QMessageBox::warning(this, "Eroare DB", "Modificarile facute in Word nu au putut fi urcate pe server.");
-                    }
+                std::string toStore;
+                if (binary) {
+                    // Encodam bytes reali -> base64 pentru stocare in DB
+                    toStore = newData.toBase64().toStdString();
+                } else {
+                    toStore = std::string(newData.constData(), newData.size());
                 }
-            } else {
-                m_statusLabel->setText("Deschis in modul Read-Only.");
+
+                if (m_fm.updateTextFile(entity->getId(), toStore, m_currentUser)) {
+                    tf->write(toStore);
+                    m_model->refresh();
+                    showPreview(entity);
+                    m_statusLabel->setText("Sincronizare reusita: " + fileName);
+                    logEvent("UPDATE_FROM_EXTERNAL", entity->getName());
+                } else {
+                    QMessageBox::warning(this, "Eroare DB", "Modificarile nu au putut fi salvate in sistem.");
+                }
             }
         } else {
-            QMessageBox::warning(this, "Eroare", "Nu s-a putut crea fisierul temporar (TempLocation)!");
+            m_statusLabel->setText("Deschis in modul Read-Only.");
         }
     } catch (const std::exception& e) {
         QMessageBox::warning(this, "Eroare", QString::fromStdString(e.what()));
@@ -1142,7 +1437,12 @@ void MainWindow::showPreview(FileSystemEntity* entity) {
             else if (name.endsWith(".pdf", Qt::CaseInsensitive)) docType = "Document PDF (.pdf)";
 
             info += "<b>Tip:</b> " + docType + "<br><hr>";
-            info += "<pre>" + QString::fromStdString(tf->read()) + "</pre>";
+            if (isBinaryOffice(name)) {
+                QByteArray raw = QByteArray::fromBase64(QByteArray::fromStdString(tf->read()));
+                info += QString("<i>Fisier binar — %1 bytes stocati.</i>").arg(raw.size());
+            } else {
+                info += "<pre>" + QString::fromStdString(tf->read()).toHtmlEscaped() + "</pre>";
+            }
 
             auto shared = m_fm.getSharedWithList(entity->getId());
             if (!shared.empty()) {

@@ -31,10 +31,7 @@ bool RemoteAuthService::registerUser(const std::string& username, const std::str
 bool RemoteAuthService::login(const std::string& username, const std::string& password) {
     std::string resp = sendCmd("AUTH_LOGIN|" + username + "|" + password);
     auto parts = split(resp, '|');
-    if (parts.empty()) return false;
-    if (parts[0] == "OK") return true;
-    if (parts.size() > 1) throw std::runtime_error(parts[1]);
-    return false;
+    return !parts.empty() && parts[0] == "OK";
 }
 
 void RemoteAuthService::logout() {

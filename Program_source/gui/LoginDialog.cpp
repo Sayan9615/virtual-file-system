@@ -54,6 +54,8 @@ LoginDialog::LoginDialog(IAuthService& auth, QWidget* parent)
 
     loginBtn->setMinimumHeight(35);
     registerBtn->setMinimumHeight(35);
+    loginBtn->setAutoDefault(false);
+    registerBtn->setAutoDefault(false);
 
     loginBtn->setStyleSheet(
         "QPushButton { background-color: #0078D4; color: white; "
@@ -99,7 +101,8 @@ void LoginDialog::onLogin() {
         // FIX: al tau are login() nu loginUser()
         if (!m_auth.login(username.toStdString(), password.toStdString())) {
             showError("Username sau parolă incorectă!");
-            m_passwordEdit->clear();
+            m_passwordEdit->setFocus();
+            m_passwordEdit->selectAll();
             return;
         }
 
@@ -110,7 +113,8 @@ void LoginDialog::onLogin() {
 
     } catch (const std::exception& e) {
         showError(QString::fromStdString(e.what()));
-        m_passwordEdit->clear();
+        m_passwordEdit->setFocus();
+        m_passwordEdit->selectAll();
     }
 }
 
