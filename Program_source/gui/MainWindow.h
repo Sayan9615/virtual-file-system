@@ -36,7 +36,7 @@ private slots:
     void onRename();
     void onDelete();
     void onEditFile();
-    void onOpenExternal();
+    void onOpenExternal(FileSystemEntity* entityOverride = nullptr);
     void onShareDialog();
     void onManageGroups();
     void onProperties();

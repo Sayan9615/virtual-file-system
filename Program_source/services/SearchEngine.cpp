@@ -24,7 +24,7 @@ std::regex SearchEngine::wildcardToRegex(const std::string& pattern) const {
 void SearchEngine::dfsName(Folder* node, const std::regex& re,
                             std::vector<SearchResult>& results) const {
     for (const auto& child : node->getChildren()) {
-        if (std::regex_match(child->getName(), re)) {
+        if (std::regex_search(child->getName(), re)) {
             results.push_back({
                 node->getAbsolutePath() + "/" + child->getName(),
                 child,

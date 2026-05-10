@@ -5,8 +5,13 @@
 #include <sstream>
 #include <algorithm>
 
+static std::string extractExt(const std::string& name) {
+    auto p = name.rfind('.');
+    return (p != std::string::npos) ? name.substr(p) : ".txt";
+}
+
 TextFile::TextFile(const std::string &name, const std::string &ownerUser, const std::string &ownerGroup, const std::string &content)
-:File(name,ownerUser,ownerGroup,".txt"),m_content(content)
+:File(name,ownerUser,ownerGroup,extractExt(name)),m_content(content)
 {
     this->m_size=this->m_content.size();
 }
@@ -74,9 +79,15 @@ std::vector<std::string> TextFile::search(const std::string &text) const
     return results;
 }
 
+static bool ciFind(const std::string& hay, const std::string& needle) {
+    return std::search(hay.begin(), hay.end(), needle.begin(), needle.end(),
+        [](char a, char b){ return std::tolower((unsigned char)a) == std::tolower((unsigned char)b); }
+    ) != hay.end();
+}
+
 bool TextFile::contains(const std::string &data) const
 {
-     return this->m_name.find(data) != std::string::npos || this->m_content.find(data) != std::string::npos;
+    return ciFind(this->m_name, data) || ciFind(this->m_content, data);
 }
 
 void TextFile::share(const std::string &username)
