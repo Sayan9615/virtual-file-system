@@ -437,8 +437,6 @@ int main() {
     WSAStartup(MAKEWORD(2, 2), &wsaData);
 
     vector<string> dbPaths = {
-        "data/filesystem_app.db",
-        "Program_source/data/filesystem_app.db",
         "../Program_source/data/filesystem_app.db"
     };
     bool dbOpened = false;
