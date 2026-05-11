@@ -46,7 +46,7 @@ std::vector<std::pair<int, std::string>> RemoteAuthService::getAllUsers() {
 }
 
 bool RemoteAuthService::isAdmin(const std::string& username) {
-    return username == "admin"; // Verificare simpla locala pt admin
+    return username == "admin";
 }
 
 bool RemoteAuthService::deleteUser(const std::string& username) {

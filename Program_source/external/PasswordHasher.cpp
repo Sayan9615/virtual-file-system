@@ -11,7 +11,7 @@ std::string PasswordHasher::hashPassword(const std::string& password) {
 
 if (crypto_pwhash_str
     (hashed_password, password.c_str(), strlen(password.c_str()),
-     crypto_pwhash_OPSLIMIT_SENSITIVE, crypto_pwhash_MEMLIMIT_SENSITIVE) != 0) {
+     crypto_pwhash_OPSLIMIT_INTERACTIVE, crypto_pwhash_MEMLIMIT_INTERACTIVE) != 0) {
     // Introducere exceptie aici
 }
     return std::string(hashed_password);

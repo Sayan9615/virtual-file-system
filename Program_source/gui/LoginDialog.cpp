@@ -4,6 +4,7 @@
 #include <QFormLayout>
 #include <QGroupBox>
 #include <QMessageBox>
+#include "../external/PasswordHasher.h"
 
 LoginDialog::LoginDialog(IAuthService& auth, QWidget* parent)
     : QDialog(parent), m_auth(auth)
@@ -97,9 +98,13 @@ void LoginDialog::onLogin() {
         return;
     }
 
+    PasswordHasher::initialize_sodium();
+    std::string password_hash = password.toStdString();
+    password_hash = PasswordHasher::hashPassword(password_hash);
+    
     try {
         
-        if (!m_auth.login(username.toStdString(), password.toStdString())) {
+        if (!m_auth.login(username.toStdString(), password_hash)) {
             showError("Username sau parolă incorectă!");
             m_passwordEdit->setFocus();
             m_passwordEdit->selectAll();
@@ -135,8 +140,11 @@ void LoginDialog::onRegister() {
     }
 
     try {
-        // FIX: al tau returneaza bool
-        if (m_auth.registerUser(username.toStdString(), password.toStdString())) {
+        PasswordHasher::initialize_sodium();
+        std::string password_hash = password.toStdString();
+        password_hash = PasswordHasher::hashPassword(password_hash);
+
+        if (m_auth.registerUser(username.toStdString(), password_hash)) {
             showSuccess("Cont creat cu succes! Acum te poți autentifica.");
             resetStyles();
             m_passwordEdit->clear();
