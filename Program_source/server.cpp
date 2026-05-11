@@ -68,8 +68,6 @@ static string recvMsg(SOCKET sock) {
     return result;
 }
 
-// ── Utility: split by delimiter ───────────────────────────────────────────────
-
 static vector<string> splitMsg(const string& s, char delim) {
     vector<string> parts;
     stringstream ss(s);
@@ -79,8 +77,6 @@ static vector<string> splitMsg(const string& s, char delim) {
     }
     return parts;
 }
-
-// ── JSON helpers ──────────────────────────────────────────────────────────────
 
 static string jsonEscapeStr(const string& s) {
     string out;
@@ -434,21 +430,20 @@ void handleClient(SOCKET clientSocket) {
     cout << "Client deconectat.\n";
 }
 
-// ── Main ──────────────────────────────────────────────────────────────────────
+
 
 int main() {
     WSADATA wsaData;
     WSAStartup(MAKEWORD(2, 2), &wsaData);
 
-    // Incearca mai multe locatii posibile pentru DB
     vector<string> dbPaths = {
         "data/filesystem_app.db",
         "Program_source/data/filesystem_app.db",
         "../Program_source/data/filesystem_app.db"
     };
     bool dbOpened = false;
-    for (auto& path : dbPaths) {
-        if (g_db.open(path)) { dbOpened = true; break; }
+    for (int i = 0; i < dbPaths.size();i++) {
+        if (g_db.open(dbPaths[i])) { dbOpened = true; break; }
     }
     if (!dbOpened) {
         cout << "Eroare: Baza de date nu s-a gasit in nicio locatie cunoscuta!\n";
@@ -468,24 +463,26 @@ int main() {
     setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR, (char*)&opt, sizeof(opt));
 
     sockaddr_in addr;
+    int port = 8080;
     addr.sin_family      = AF_INET;
-    addr.sin_port        = htons(8080);
+    addr.sin_port        = htons(port);
     addr.sin_addr.s_addr = INADDR_ANY;
 
     bind(serverSocket, (sockaddr*)&addr, sizeof(addr));
     listen(serverSocket, 5);
 
-    cout << "Server ATMosFILE pornit pe portul 8080...\n";
+    cout << "Server ATMosFILE pornit pe portul " + to_string(port) + " ...\n";
 
     while (true) {
         SOCKET clientSocket = accept(serverSocket, nullptr, nullptr);
         if (clientSocket == INVALID_SOCKET) continue;
         thread(handleClient, clientSocket).detach();
     }
-
+    
     delete g_auth;
     delete g_fm;
     closesocket(serverSocket);
     WSACleanup();
     return 0;
+    
 }

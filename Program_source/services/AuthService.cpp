@@ -22,7 +22,7 @@ bool AuthService::initializeDatabase() {
         );
     )";
     if (db.execute(sql)) {
-        // Default admin
+        // Defaadminult 
         registerUser("admin", "admin");
         return true;
     }

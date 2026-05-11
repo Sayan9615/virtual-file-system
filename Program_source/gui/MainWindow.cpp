@@ -2,8 +2,8 @@
 #include "../filesystem/TextFile.h"
 #include "../filesystem/BinaryFile.h"
 #include "../filesystem/SharedFolder.h"
-#include "../services/IFileManager.h"
-#include "../services/IAuthService.h"
+#include "../interfaces/IFileManager.h"
+#include "../interfaces/IAuthService.h"
 #include <QMenuBar>
 #include <QMenu>
 #include <QAction>

@@ -98,7 +98,7 @@ void LoginDialog::onLogin() {
     }
 
     try {
-        // FIX: al tau are login() nu loginUser()
+        
         if (!m_auth.login(username.toStdString(), password.toStdString())) {
             showError("Username sau parolă incorectă!");
             m_passwordEdit->setFocus();

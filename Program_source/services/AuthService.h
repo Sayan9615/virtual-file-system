@@ -1,5 +1,5 @@
 #pragma once
-#include "IAuthService.h"
+#include "../interfaces/IAuthService.h"
 #include "Database.h"
 #include "../logger/Logger.h"
 

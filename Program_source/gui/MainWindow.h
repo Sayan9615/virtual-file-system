@@ -12,8 +12,8 @@
 #include <QMenu>
 #include <QShortcut>
 #include "../filesystem/Folder.h"
-#include "../services/IFileManager.h"
-#include "../services/IAuthService.h"
+#include "../interfaces/IFileManager.h"
+#include "../interfaces/IAuthService.h"
 #include "../services/SearchEngine.h"
 #include "../services/SortManager.h"
 #include "FileSystemModel.h"
