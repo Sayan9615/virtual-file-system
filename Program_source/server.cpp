@@ -15,19 +15,16 @@
 #include "services/FileManager.h"
 #include "logger/ConsoleLogger.h"
 #include "filesystem/Folder.h"
-#include "filesystem/SharedFolder.h"
 #include "filesystem/TextFile.h"
 #include "filesystem/BinaryFile.h"
 
 using namespace std;
 
-mutex g_mutex;  // protejeaza accesul la DB din mai multe thread-uri
+mutex g_mutex;
 Database g_db;
 ConsoleLogger g_logger;
 AuthService* g_auth = nullptr;
 FileManager* g_fm   = nullptr;
-
-// ── Protocol helpers ──────────────────────────────────────────────────────────
 
 static bool sendMsg(SOCKET sock, const string& msg) {
     char lenBuf[9];
@@ -72,9 +69,8 @@ static vector<string> splitMsg(const string& s, char delim) {
     vector<string> parts;
     stringstream ss(s);
     string token;
-    while (getline(ss, token, delim)) {
+    while (getline(ss, token, delim))
         parts.push_back(token);
-    }
     return parts;
 }
 
@@ -82,11 +78,11 @@ static string jsonEscapeStr(const string& s) {
     string out;
     out.reserve(s.size() + 4);
     for (unsigned char c : s) {
-        if (c == '\\') { out += "\\\\"; }
-        else if (c == '"')  { out += "\\\""; }
-        else if (c == '\n') { out += "\\n"; }
-        else if (c == '\r') { out += "\\r"; }
-        else if (c == '\t') { out += "\\t"; }
+        if      (c == '\\') out += "\\\\";
+        else if (c == '"')  out += "\\\"";
+        else if (c == '\n') out += "\\n";
+        else if (c == '\r') out += "\\r";
+        else if (c == '\t') out += "\\t";
         else if (c < 0x20) {
             char buf[8];
             snprintf(buf, sizeof(buf), "\\u%04X", (unsigned int)c);
@@ -103,22 +99,14 @@ static string serializeEntityToJson(FileSystemEntity* entity, int parentId) {
     json += "\"id\":" + to_string(entity->getId()) + ",";
 
     string typeStr;
-    if (auto* sf = dynamic_cast<SharedFolder*>(entity)) {
-        typeStr = "SharedFolder";
-    } else if (dynamic_cast<Folder*>(entity)) {
-        typeStr = "Folder";
-    } else if (dynamic_cast<TextFile*>(entity)) {
-        typeStr = "TextFile";
-    } else if (dynamic_cast<BinaryFile*>(entity)) {
-        typeStr = "BinaryFile";
-    } else {
-        typeStr = "Unknown";
-    }
+    if (dynamic_cast<Folder*>(entity))      typeStr = "Folder";
+    else if (dynamic_cast<TextFile*>(entity))   typeStr = "TextFile";
+    else if (dynamic_cast<BinaryFile*>(entity)) typeStr = "BinaryFile";
+    else                                        typeStr = "Unknown";
 
     json += "\"type\":\"" + typeStr + "\",";
     json += "\"name\":\"" + jsonEscapeStr(entity->getName()) + "\",";
     json += "\"owner\":\"" + jsonEscapeStr(entity->getOwnerUser()) + "\",";
-    json += "\"group\":\"" + jsonEscapeStr(entity->getOwnerGroup()) + "\",";
     json += "\"parentId\":" + to_string(parentId) + ",";
     json += "\"createdAt\":" + to_string((long long)entity->getCreatedAt()) + ",";
     json += "\"modifiedAt\":" + to_string((long long)entity->getModifiedAt());
@@ -127,8 +115,6 @@ static string serializeEntityToJson(FileSystemEntity* entity, int parentId) {
         json += ",\"content\":\"" + jsonEscapeStr(tf->read()) + "\"";
     } else if (auto* bf = dynamic_cast<BinaryFile*>(entity)) {
         json += ",\"extension\":\"" + jsonEscapeStr(bf->getExtension()) + "\",\"size\":" + to_string(bf->getSize());
-    } else if (auto* sf = dynamic_cast<SharedFolder*>(entity)) {
-        json += ",\"isPublic\":" + string(sf->isPublic() ? "1" : "0");
     }
 
     json += "}";
@@ -144,9 +130,8 @@ static void serializeTreeDFS(Folder* folder, int parentId, string& out, bool& fi
         FileSystemEntity* entity = child.get();
         if (entity->isFolder()) {
             auto* childFolder = dynamic_cast<Folder*>(entity);
-            if (childFolder) {
+            if (childFolder)
                 serializeTreeDFS(childFolder, folder->getId(), out, first);
-            }
         } else {
             out += ",";
             out += serializeEntityToJson(entity, folder->getId());
@@ -161,8 +146,6 @@ static string serializeTreeToJson(Folder* folder) {
     json += "]";
     return json;
 }
-
-// ── Handle client ─────────────────────────────────────────────────────────────
 
 void handleClient(SOCKET clientSocket) {
     cout << "Client nou conectat.\n";
@@ -181,6 +164,7 @@ void handleClient(SOCKET clientSocket) {
 
         try {
             lock_guard<mutex> lock(g_mutex);
+
             // ── Auth commands ──────────────────────────────────────
             if (cmd == "AUTH_REGISTER") {
                 if (parts.size() < 3) { response = "ERR|missing args"; }
@@ -203,11 +187,9 @@ void handleClient(SOCKET clientSocket) {
             else if (cmd == "AUTH_GET_ALL_USERS") {
                 auto users = g_auth->getAllUsers();
                 response = "OK";
-                for (auto& [id, name] : users) {
+                for (auto& [id, name] : users)
                     response += "|" + to_string(id) + "|" + name;
-                }
             }
-            // 🔥 Adaugat: AUTH_DELETE_USER
             else if (cmd == "AUTH_DELETE_USER") {
                 if (parts.size() < 2) { response = "ERR|missing args"; }
                 else {
@@ -249,30 +231,41 @@ void handleClient(SOCKET clientSocket) {
                     for (auto& u : users) response += "|" + u;
                 }
             }
+
             // ── FileManager commands ───────────────────────────────
             else if (cmd == "FM_INIT") {
                 bool ok = g_fm->initializeDatabase();
                 response = ok ? "OK" : "ERR|init failed";
             }
             else if (cmd == "FM_CREATE_TEXT_FILE") {
-                // FM_CREATE_TEXT_FILE|name|ownerUser|ownerGroup|parentId|content
-                if (parts.size() < 6) { response = "ERR|missing args"; }
+                // FM_CREATE_TEXT_FILE|name|ownerUser|parentId|content
+                if (parts.size() < 5) { response = "ERR|missing args"; }
                 else {
-                    int parentId = stoi(parts[4]);
+                    int parentId = stoi(parts[3]);
                     string content;
-                    for (size_t i = 5; i < parts.size(); ++i) {
-                        if (i > 5) content += "|";
+                    for (size_t i = 4; i < parts.size(); ++i) {
+                        if (i > 4) content += "|";
                         content += parts[i];
                     }
-                    bool ok = g_fm->createTextFile(parts[1], parts[2], parts[3], content, parentId);
+                    bool ok = g_fm->createTextFile(parts[1], parts[2], content, parentId);
                     response = ok ? "OK" : "ERR|create failed";
                 }
             }
             else if (cmd == "FM_CREATE_FOLDER") {
+                // FM_CREATE_FOLDER|name|ownerUser|parentId
+                if (parts.size() < 4) { response = "ERR|missing args"; }
+                else {
+                    int parentId = stoi(parts[3]);
+                    bool ok = g_fm->createFolder(parts[1], parts[2], parentId);
+                    response = ok ? "OK" : "ERR|create failed";
+                }
+            }
+            else if (cmd == "FM_CREATE_BINARY_FILE") {
+                // FM_CREATE_BINARY_FILE|name|ownerUser|extension|parentId
                 if (parts.size() < 5) { response = "ERR|missing args"; }
                 else {
                     int parentId = stoi(parts[4]);
-                    bool ok = g_fm->createFolder(parts[1], parts[2], parts[3], parentId);
+                    bool ok = g_fm->createBinaryFile(parts[1], parts[2], parts[3], parentId);
                     response = ok ? "OK" : "ERR|create failed";
                 }
             }
@@ -296,7 +289,7 @@ void handleClient(SOCKET clientSocket) {
                 if (parts.size() < 4) { response = "ERR|missing args"; }
                 else {
                     int id = stoi(parts[1]);
-                    std::string content;
+                    string content;
                     for (size_t i = 3; i < parts.size(); ++i) {
                         if (i > 3) content += "|";
                         content += parts[i];
@@ -313,26 +306,6 @@ void handleClient(SOCKET clientSocket) {
                     response = string("OK|") + (ok ? "1" : "0");
                 }
             }
-            else if (cmd == "FM_SET_PERMISSION") {
-                if (parts.size() < 5) { response = "ERR|missing args"; }
-                else {
-                    int id = stoi(parts[1]);
-                    bool canRead  = parts[3] == "1";
-                    bool canWrite = parts[4] == "1";
-                    bool ok = g_fm->setPermission(id, parts[2], canRead, canWrite);
-                    response = ok ? "OK" : "ERR|failed";
-                }
-            }
-            else if (cmd == "FM_UPDATE_GROUP_PERM") {
-                if (parts.size() < 4) { response = "ERR|missing args"; }
-                else {
-                    int id = stoi(parts[1]);
-                    bool canRead  = parts[2] == "1";
-                    bool canWrite = parts[3] == "1";
-                    bool ok = g_fm->updateGroupPermissions(id, canRead, canWrite);
-                    response = ok ? "OK" : "ERR|failed";
-                }
-            }
             else if (cmd == "FM_UPDATE_OTHERS_PERM") {
                 if (parts.size() < 4) { response = "ERR|missing args"; }
                 else {
@@ -344,10 +317,13 @@ void handleClient(SOCKET clientSocket) {
                 }
             }
             else if (cmd == "FM_SHARE") {
-                if (parts.size() < 3) { response = "ERR|missing args"; }
+                // FM_SHARE|entityId|username|canRead|canWrite
+                if (parts.size() < 5) { response = "ERR|missing args"; }
                 else {
                     int id = stoi(parts[1]);
-                    bool ok = g_fm->shareEntity(id, parts[2]);
+                    bool canRead  = parts[3] == "1";
+                    bool canWrite = parts[4] == "1";
+                    bool ok = g_fm->shareEntity(id, parts[2], canRead, canWrite);
                     response = ok ? "OK" : "ERR|failed";
                 }
             }
@@ -359,44 +335,17 @@ void handleClient(SOCKET clientSocket) {
                     response = ok ? "OK" : "ERR|failed";
                 }
             }
-            else if (cmd == "FM_GET_SHARED_WITH") {
-                if (parts.size() < 2) { response = "ERR|missing args"; }
-                else {
-                    int id = stoi(parts[1]);
-                    auto users = g_fm->getSharedWithList(id);
-                    response = "OK";
-                    for (auto& u : users) response += "|" + u;
-                }
-            }
-            else if (cmd == "FM_ADD_USER_TO_GROUP") {
-                if (parts.size() < 3) { response = "ERR|missing args"; }
-                else {
-                    int id = stoi(parts[1]);
-                    bool ok = g_fm->addUserToGroup(id, parts[2]);
-                    response = ok ? "OK" : "ERR|failed";
-                }
-            }
-            else if (cmd == "FM_REMOVE_USER_FROM_GROUP") {
-                if (parts.size() < 3) { response = "ERR|missing args"; }
-                else {
-                    int id = stoi(parts[1]);
-                    bool ok = g_fm->removeUserFromGroup(id, parts[2]);
-                    response = ok ? "OK" : "ERR|failed";
-                }
-            }
             else if (cmd == "FM_LOAD_PERMISSIONS") {
                 if (parts.size() < 2) { response = "ERR|missing args"; }
                 else {
                     int id = stoi(parts[1]);
                     auto pm = g_fm->loadPermissions(id);
-                    auto gp = pm.getGroupPermission();
                     auto op = pm.getOthersPermission();
-                    int gRead  = gp ? (gp->canRead()  ? 1 : 0) : 0;
-                    int gWrite = gp ? (gp->canWrite() ? 1 : 0) : 0;
+                    auto up = pm.getUserPermission();
                     int oRead  = op ? (op->canRead()  ? 1 : 0) : 0;
                     int oWrite = op ? (op->canWrite() ? 1 : 0) : 0;
-                    response = "OK|" + to_string(gRead) + "|" + to_string(gWrite) +
-                               "|" + to_string(oRead) + "|" + to_string(oWrite);
+                    string members = up ? up->serialize() : "";
+                    response = "OK|" + to_string(oRead) + "|" + to_string(oWrite) + "|" + members;
                 }
             }
             else if (cmd == "FM_GET_ROOT_ID") {
@@ -430,8 +379,6 @@ void handleClient(SOCKET clientSocket) {
     cout << "Client deconectat.\n";
 }
 
-
-
 int main() {
     WSADATA wsaData;
     WSAStartup(MAKEWORD(2, 2), &wsaData);
@@ -440,7 +387,7 @@ int main() {
         "../Program_source/data/filesystem_app.db"
     };
     bool dbOpened = false;
-    for (int i = 0; i < dbPaths.size();i++) {
+    for (int i = 0; i < (int)dbPaths.size(); i++) {
         if (g_db.open(dbPaths[i])) { dbOpened = true; break; }
     }
     if (!dbOpened) {
@@ -456,7 +403,6 @@ int main() {
 
     SOCKET serverSocket = socket(AF_INET, SOCK_STREAM, 0);
 
-    // Allow address reuse
     int opt = 1;
     setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR, (char*)&opt, sizeof(opt));
 
@@ -476,11 +422,10 @@ int main() {
         if (clientSocket == INVALID_SOCKET) continue;
         thread(handleClient, clientSocket).detach();
     }
-    
+
     delete g_auth;
     delete g_fm;
     closesocket(serverSocket);
     WSACleanup();
     return 0;
-    
 }

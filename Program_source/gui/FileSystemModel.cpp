@@ -36,20 +36,16 @@ QModelIndex FileSystemModel::parent(const QModelIndex& child) const {
     auto* entity = static_cast<FileSystemEntity*>(child.internalPointer());
     if (!entity || entity == m_root) return QModelIndex();
 
-    // gasim parintele entitatii
     Folder* parentFolder = findParent(m_root, entity);
     if (!parentFolder || parentFolder == m_root) return QModelIndex();
 
-    // gasim parintele parintelui
     Folder* grandParent = findParent(m_root, parentFolder);
     if (!grandParent) return QModelIndex();
 
-    // gasim indexul parintelui in bunic
     auto children = grandParent->getChildren();
     for (int i = 0; i < (int)children.size(); i++) {
-        if (children[i].get() == parentFolder) {
+        if (children[i].get() == parentFolder)
             return createIndex(i, 0, parentFolder);
-        }
     }
     return QModelIndex();
 }
@@ -70,7 +66,7 @@ int FileSystemModel::rowCount(const QModelIndex& parent) const {
 
 int FileSystemModel::columnCount(const QModelIndex& parent) const {
     Q_UNUSED(parent);
-    return 4; // Nume | Tip | Dimensiune | Data crearii
+    return 4;
 }
 
 QVariant FileSystemModel::data(const QModelIndex& index, int role) const {
@@ -98,10 +94,8 @@ QVariant FileSystemModel::data(const QModelIndex& index, int role) const {
     }
 
     if (role == Qt::DecorationRole && index.column() == 0) {
-        if (entity->isFolder()) {
-            auto* sf = dynamic_cast<SharedFolder*>(entity);
-            return QIcon(sf ? ":/icons/folder_shared.png" : ":/icons/folder.png");
-        }
+        if (entity->isFolder())
+            return QIcon(":/icons/folder.png");
 
         auto* file = dynamic_cast<File*>(entity);
         if (file) {
@@ -119,12 +113,6 @@ QVariant FileSystemModel::data(const QModelIndex& index, int role) const {
         QFont font;
         if (entity->isFolder()) font.setBold(true);
         return font;
-    }
-
-    if (role == Qt::ForegroundRole) {
-        auto* sf = dynamic_cast<SharedFolder*>(entity);
-        if (sf) return QColor(0, 120, 215); // albastru pentru shared
-        return QVariant();
     }
 
     return QVariant();

@@ -6,7 +6,6 @@
 #include <QFont>
 #include <QColor>
 #include "../filesystem/Folder.h"
-#include "../filesystem/SharedFolder.h"
 #include "../filesystem/File.h"
 #include "../filesystem/TextFile.h"
 #include "../filesystem/BinaryFile.h"

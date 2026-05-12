@@ -13,7 +13,6 @@ protected:
     int m_id = 0;
     std::string m_name;
     std::string m_ownerUser;
-    std::string m_ownerGroup;
     std::time_t m_createdAt;
     std::time_t m_modifiedAt;
     PermissionManager m_permissions;
@@ -21,7 +20,7 @@ protected:
 
 public:
     FileSystemEntity(const std::string& name, const std::string& ownerUser,
-                     const std::string& ownerGroup, iLogger* logger = nullptr);
+                     iLogger* logger = nullptr);
     FileSystemEntity(const FileSystemEntity& other);
     FileSystemEntity(FileSystemEntity&& other) noexcept;
 
@@ -30,12 +29,10 @@ public:
 
     virtual ~FileSystemEntity() = default;
 
-    // Getteri
     int getId() const { return m_id; }
     void setId(int id) { m_id = id; }
     std::string getName() const { return m_name; }
     std::string getOwnerUser() const { return m_ownerUser; }
-    std::string getOwnerGroup() const { return m_ownerGroup; }
     std::time_t getCreatedAt() const { return m_createdAt; }
     std::time_t getModifiedAt() const { return m_modifiedAt; }
     PermissionManager& getPermissions() { return m_permissions; }
@@ -43,12 +40,8 @@ public:
 
     void setLogger(iLogger* logger) { m_logger = logger; }
 
-    // Setteri
     void setName(const std::string& name);
     void setOwnerUser(const std::string& user);
-    void setOwnerGroup(const std::string& group);
-
-    // FIX: Setteri pentru a pastra data originala la incarcarea din baza de date
     void setCreatedAt(std::time_t t) { m_createdAt = t; }
     void setModifiedAt(std::time_t t) { m_modifiedAt = t; }
 
