@@ -35,6 +35,8 @@ public:
     std::vector<std::shared_ptr<FileSystemEntity>> getChildren(int parentId) override;
     std::shared_ptr<Folder> buildTree(int folderId, Folder* parent = nullptr,
                                       const std::string& username = "") override;
+    
+    virtual int getParentId(int entityId) const override;
 
 private:
     SocketClient& m_client;

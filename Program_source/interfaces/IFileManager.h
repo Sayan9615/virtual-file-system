@@ -73,4 +73,6 @@ public:
         int folderId,
         Folder* parent = nullptr,
         const std::string& username = "") = 0;
+
+    virtual int getParentId(int entityId) const = 0;
 };

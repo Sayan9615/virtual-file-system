@@ -3,65 +3,80 @@
 #include "../filesystem/BinaryFile.h"
 #include <QIcon>
 #include <QFont>
-#include <QColor>
+#include <algorithm>
 
-FileSystemModel::FileSystemModel(Folder* root, QObject* parent)
-    : QAbstractItemModel(parent), m_root(root)
-{}
+FileSystemModel::FileSystemModel(IFileManager& fm,
+                                 const std::string& username,
+                                 int rootId,
+                                 QObject* parent)
+    : QAbstractItemModel(parent), m_fm(fm),
+      m_username(username), m_rootId(rootId),
+      m_currentFolderId(rootId)
+{
+    loadChildren(false); // primul nivel — fara filtrare
+}
+
+void FileSystemModel::loadChildren(bool filterPermissions) {
+    m_children = m_fm.getChildren(m_currentFolderId);
+
+    if (filterPermissions) {
+        m_children.erase(
+            std::remove_if(m_children.begin(), m_children.end(),
+                [&](const std::shared_ptr<FileSystemEntity>& e) {
+                    return !m_fm.checkPermission(e->getId(), m_username, "read");
+                }),
+            m_children.end()
+        );
+    }
+}
+
+void FileSystemModel::navigateTo(int folderId) {
+    m_history.push(m_currentFolderId);
+    m_currentFolderId = folderId;
+    loadChildren(true);
+    beginResetModel();
+    endResetModel();
+}
+
+void FileSystemModel::goBack() {
+    if (m_history.empty()) return;
+    m_currentFolderId = m_history.top();
+    m_history.pop();
+    beginResetModel();
+    // daca ne intoarcem la root, fara filtrare
+    loadChildren(m_currentFolderId != m_rootId);
+    endResetModel();
+}
+
+bool FileSystemModel::canGoBack() const {
+    return !m_history.empty();
+}
+
+int FileSystemModel::currentFolderId() const {
+    return m_currentFolderId;
+}
+
+void FileSystemModel::refresh() {
+    beginResetModel();
+    loadChildren(m_currentFolderId != m_rootId);
+    endResetModel();
+}
 
 QModelIndex FileSystemModel::index(int row, int column,
                                    const QModelIndex& parent) const {
-    if (!hasIndex(row, column, parent)) return QModelIndex();
-
-    Folder* parentFolder = nullptr;
-
-    if (!parent.isValid()) {
-        parentFolder = m_root;
-    } else {
-        auto* entity = static_cast<FileSystemEntity*>(parent.internalPointer());
-        parentFolder = dynamic_cast<Folder*>(entity);
-    }
-
-    if (!parentFolder) return QModelIndex();
-
-    auto children = parentFolder->getChildren();
-    if (row >= (int)children.size()) return QModelIndex();
-
-    return createIndex(row, column, children[row].get());
+    if (parent.isValid()) return QModelIndex();
+    if (row < 0 || row >= (int)m_children.size()) return QModelIndex();
+    return createIndex(row, column, m_children[row].get());
 }
 
 QModelIndex FileSystemModel::parent(const QModelIndex& child) const {
-    if (!child.isValid()) return QModelIndex();
-
-    auto* entity = static_cast<FileSystemEntity*>(child.internalPointer());
-    if (!entity || entity == m_root) return QModelIndex();
-
-    Folder* parentFolder = findParent(m_root, entity);
-    if (!parentFolder || parentFolder == m_root) return QModelIndex();
-
-    Folder* grandParent = findParent(m_root, parentFolder);
-    if (!grandParent) return QModelIndex();
-
-    auto children = grandParent->getChildren();
-    for (int i = 0; i < (int)children.size(); i++) {
-        if (children[i].get() == parentFolder)
-            return createIndex(i, 0, parentFolder);
-    }
+    Q_UNUSED(child);
     return QModelIndex();
 }
 
 int FileSystemModel::rowCount(const QModelIndex& parent) const {
-    Folder* parentFolder = nullptr;
-
-    if (!parent.isValid()) {
-        parentFolder = m_root;
-    } else {
-        auto* entity = static_cast<FileSystemEntity*>(parent.internalPointer());
-        parentFolder = dynamic_cast<Folder*>(entity);
-    }
-
-    if (!parentFolder) return 0;
-    return parentFolder->getChildCount();
+    if (parent.isValid()) return 0;
+    return (int)m_children.size();
 }
 
 int FileSystemModel::columnCount(const QModelIndex& parent) const {
@@ -71,6 +86,7 @@ int FileSystemModel::columnCount(const QModelIndex& parent) const {
 
 QVariant FileSystemModel::data(const QModelIndex& index, int role) const {
     if (!index.isValid()) return QVariant();
+    if (index.row() < 0 || index.row() >= (int)m_children.size()) return QVariant();
 
     auto* entity = static_cast<FileSystemEntity*>(index.internalPointer());
     if (!entity) return QVariant();
@@ -78,10 +94,11 @@ QVariant FileSystemModel::data(const QModelIndex& index, int role) const {
     if (role == Qt::DisplayRole) {
         switch (index.column()) {
         case 0: return QString::fromStdString(entity->getName());
-        case 1: return entity->isFolder() ? "Folder" :
-                       QString::fromStdString(
-                           dynamic_cast<File*>(entity) ?
-                               dynamic_cast<File*>(entity)->getExtension() : "");
+        case 1: {
+            if (entity->isFolder()) return "Folder";
+            auto* f = dynamic_cast<File*>(entity);
+            return f ? QString::fromStdString(f->getExtension()) : "";
+        }
         case 2: return QString::number(entity->getSize()) + " B";
         case 3: {
             std::time_t t = entity->getCreatedAt();
@@ -134,25 +151,6 @@ QVariant FileSystemModel::headerData(int section,
 }
 
 FileSystemEntity* FileSystemModel::entityFromIndex(const QModelIndex& index) const {
-    if (!index.isValid()) return m_root;
+    if (!index.isValid()) return nullptr;
     return static_cast<FileSystemEntity*>(index.internalPointer());
-}
-
-Folder* FileSystemModel::findParent(Folder* current, FileSystemEntity* target) const {
-    auto children = current->getChildren();
-    for (const auto& child : children) {
-        if (child.get() == target) return current;
-
-        auto* subFolder = dynamic_cast<Folder*>(child.get());
-        if (subFolder) {
-            Folder* result = findParent(subFolder, target);
-            if (result) return result;
-        }
-    }
-    return nullptr;
-}
-
-void FileSystemModel::refresh() {
-    beginResetModel();
-    endResetModel();
 }

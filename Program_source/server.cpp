@@ -29,10 +29,8 @@ FileManager* g_fm   = nullptr;
 static bool sendMsg(SOCKET sock, const string& msg) {
     char lenBuf[9];
     snprintf(lenBuf, sizeof(lenBuf), "%08X", (unsigned int)msg.size());
-
     int sent = send(sock, lenBuf, 8, 0);
     if (sent != 8) return false;
-
     size_t total = 0;
     while (total < msg.size()) {
         int n = send(sock, msg.c_str() + total, (int)(msg.size() - total), 0);
@@ -50,11 +48,9 @@ static string recvMsg(SOCKET sock) {
         if (n <= 0) return "";
         total += n;
     }
-
     unsigned int msgLen = 0;
     sscanf(lenBuf, "%08X", &msgLen);
     if (msgLen == 0) return "";
-
     string result(msgLen, '\0');
     size_t received = 0;
     while (received < msgLen) {
@@ -99,7 +95,7 @@ static string serializeEntityToJson(FileSystemEntity* entity, int parentId) {
     json += "\"id\":" + to_string(entity->getId()) + ",";
 
     string typeStr;
-    if (dynamic_cast<Folder*>(entity))      typeStr = "Folder";
+    if (dynamic_cast<Folder*>(entity))          typeStr = "Folder";
     else if (dynamic_cast<TextFile*>(entity))   typeStr = "TextFile";
     else if (dynamic_cast<BinaryFile*>(entity)) typeStr = "BinaryFile";
     else                                        typeStr = "Unknown";
@@ -125,13 +121,11 @@ static void serializeTreeDFS(Folder* folder, int parentId, string& out, bool& fi
     if (!first) out += ",";
     first = false;
     out += serializeEntityToJson(folder, parentId);
-
     for (auto& child : folder->getChildren()) {
         FileSystemEntity* entity = child.get();
         if (entity->isFolder()) {
             auto* childFolder = dynamic_cast<Folder*>(entity);
-            if (childFolder)
-                serializeTreeDFS(childFolder, folder->getId(), out, first);
+            if (childFolder) serializeTreeDFS(childFolder, folder->getId(), out, first);
         } else {
             out += ",";
             out += serializeEntityToJson(entity, folder->getId());
@@ -143,6 +137,19 @@ static string serializeTreeToJson(Folder* folder) {
     string json = "[";
     bool first = true;
     serializeTreeDFS(folder, 0, json, first);
+    json += "]";
+    return json;
+}
+
+// Serializeaza copiii directi ai unui folder ca JSON array
+static string serializeChildrenToJson(const vector<shared_ptr<FileSystemEntity>>& children, int parentId) {
+    string json = "[";
+    bool first = true;
+    for (const auto& child : children) {
+        if (!first) json += ",";
+        first = false;
+        json += serializeEntityToJson(child.get(), parentId);
+    }
     json += "]";
     return json;
 }
@@ -238,7 +245,6 @@ void handleClient(SOCKET clientSocket) {
                 response = ok ? "OK" : "ERR|init failed";
             }
             else if (cmd == "FM_CREATE_TEXT_FILE") {
-                // FM_CREATE_TEXT_FILE|name|ownerUser|parentId|content
                 if (parts.size() < 5) { response = "ERR|missing args"; }
                 else {
                     int parentId = stoi(parts[3]);
@@ -252,7 +258,6 @@ void handleClient(SOCKET clientSocket) {
                 }
             }
             else if (cmd == "FM_CREATE_FOLDER") {
-                // FM_CREATE_FOLDER|name|ownerUser|parentId
                 if (parts.size() < 4) { response = "ERR|missing args"; }
                 else {
                     int parentId = stoi(parts[3]);
@@ -261,7 +266,6 @@ void handleClient(SOCKET clientSocket) {
                 }
             }
             else if (cmd == "FM_CREATE_BINARY_FILE") {
-                // FM_CREATE_BINARY_FILE|name|ownerUser|extension|parentId
                 if (parts.size() < 5) { response = "ERR|missing args"; }
                 else {
                     int parentId = stoi(parts[4]);
@@ -317,7 +321,6 @@ void handleClient(SOCKET clientSocket) {
                 }
             }
             else if (cmd == "FM_SHARE") {
-                // FM_SHARE|entityId|username|canRead|canWrite
                 if (parts.size() < 5) { response = "ERR|missing args"; }
                 else {
                     int id = stoi(parts[1]);
@@ -349,8 +352,32 @@ void handleClient(SOCKET clientSocket) {
                 }
             }
             else if (cmd == "FM_GET_ROOT_ID") {
-                int rootId = g_fm->getRootId();
-                response = "OK|" + to_string(rootId);
+                response = "OK|" + to_string(g_fm->getRootId());
+            }
+            else if (cmd == "FM_GET_PARENT_ID") {
+                if (parts.size() < 2) { response = "ERR|missing args"; }
+                else {
+                    int id = stoi(parts[1]);
+                    int parentId = g_fm->getParentId(id);
+                    response = "OK|" + to_string(parentId);
+                }
+            }
+            else if (cmd == "FM_GET_ENTITY_ID") {
+                if (parts.size() < 3) { response = "ERR|missing args"; }
+                else {
+                    int parentId = stoi(parts[2]);
+                    int id = g_fm->getEntityId(parts[1], parentId);
+                    response = "OK|" + to_string(id);
+                }
+            }
+            else if (cmd == "FM_GET_CHILDREN") {
+                if (parts.size() < 2) { response = "ERR|missing args"; }
+                else {
+                    int parentId = stoi(parts[1]);
+                    auto children = g_fm->getChildren(parentId);
+                    string json = serializeChildrenToJson(children, parentId);
+                    response = "OK|" + json;
+                }
             }
             else if (cmd == "FM_BUILD_TREE") {
                 string username = (parts.size() >= 2) ? parts[1] : "";

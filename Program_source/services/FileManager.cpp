@@ -326,7 +326,6 @@ bool FileManager::updateOthersPermissions(int entityId, bool canRead, bool canWr
     PermissionManager pm = loadPermissions(entityId);
     pm.addPermission(std::make_shared<OthersPermission>(canRead, canWrite));
 
-    // Daca dam acces others, propagam read pe parinti
     if (canRead) {
         int currentId = getParentId(entityId);
         while (currentId > 0) {
