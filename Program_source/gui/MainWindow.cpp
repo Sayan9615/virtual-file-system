@@ -259,10 +259,11 @@ void MainWindow::setupUI() {
                 if (!entity) return;
 
                 if (entity->isFolder()) {
-                    m_model->navigateTo(entity->getId());
+                    int folderId = entity->getId();
+                    QString folderName = QString::fromStdString(entity->getName());
+                    m_model->navigateTo(folderId);
                     m_backButton->setEnabled(m_model->canGoBack());
-                    m_addressBar->setText(
-                        QString::fromStdString(entity->getName()));
+                    m_addressBar->setText(folderName);
                     m_statusLabel->setText(
                         QString("%1 elemente").arg(m_model->rowCount()));
                 } else {

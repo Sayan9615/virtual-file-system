@@ -31,10 +31,10 @@ void FileSystemModel::loadChildren(bool filterPermissions) {
 }
 
 void FileSystemModel::navigateTo(int folderId) {
+    beginResetModel();
     m_history.push(m_currentFolderId);
     m_currentFolderId = folderId;
     loadChildren(true);
-    beginResetModel();
     endResetModel();
 }
 
