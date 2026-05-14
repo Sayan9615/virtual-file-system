@@ -2,9 +2,8 @@
 #include "../filesystem/Folder.h"
 #include "../filesystem/TextFile.h"
 #include "../filesystem/BinaryFile.h"
-#include "../filesystem/SharedFolder.h"
-#include "../permissions/GroupPermission.h"
 #include "../permissions/OthersPermission.h"
+#include "../permissions/UserPermission.h"
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QJsonObject>
@@ -22,9 +21,8 @@ std::vector<std::string> RemoteFileManager::split(const std::string& s, char del
     std::vector<std::string> result;
     std::stringstream ss(s);
     std::string token;
-    while (std::getline(ss, token, delim)) {
+    while (std::getline(ss, token, delim))
         result.push_back(token);
-    }
     return result;
 }
 
@@ -34,18 +32,25 @@ bool RemoteFileManager::initializeDatabase() {
 }
 
 bool RemoteFileManager::createTextFile(const std::string& name, const std::string& ownerUser,
-                                       const std::string& ownerGroup, const std::string& content,
-                                       int parentId) {
-    std::string cmd = "FM_CREATE_TEXT_FILE|" + name + "|" + ownerUser + "|" + ownerGroup +
+                                       const std::string& content, int parentId) {
+    std::string cmd = "FM_CREATE_TEXT_FILE|" + name + "|" + ownerUser +
                       "|" + std::to_string(parentId) + "|" + content;
     auto parts = split(sendCmd(cmd), '|');
     return !parts.empty() && parts[0] == "OK";
 }
 
 bool RemoteFileManager::createFolder(const std::string& name, const std::string& ownerUser,
-                                     const std::string& ownerGroup, int parentId) {
-    std::string cmd = "FM_CREATE_FOLDER|" + name + "|" + ownerUser + "|" + ownerGroup +
+                                     int parentId) {
+    std::string cmd = "FM_CREATE_FOLDER|" + name + "|" + ownerUser +
                       "|" + std::to_string(parentId);
+    auto parts = split(sendCmd(cmd), '|');
+    return !parts.empty() && parts[0] == "OK";
+}
+
+bool RemoteFileManager::createBinaryFile(const std::string& name, const std::string& ownerUser,
+                                         const std::string& extension, int parentId) {
+    std::string cmd = "FM_CREATE_BINARY_FILE|" + name + "|" + ownerUser +
+                      "|" + extension + "|" + std::to_string(parentId);
     auto parts = split(sendCmd(cmd), '|');
     return !parts.empty() && parts[0] == "OK";
 }
@@ -62,7 +67,6 @@ bool RemoteFileManager::deleteEntity(int id, const std::string& username) {
     return !parts.empty() && parts[0] == "OK";
 }
 
-// 🔥 Adăugat: updateTextFile
 bool RemoteFileManager::updateTextFile(int id, const std::string& content, const std::string& username) {
     std::string cmd = "FM_UPDATE_TEXT_FILE|" + std::to_string(id) + "|" + username + "|" + content;
     auto parts = split(sendCmd(cmd), '|');
@@ -76,20 +80,6 @@ bool RemoteFileManager::checkPermission(int entityId, const std::string& usernam
     return false;
 }
 
-bool RemoteFileManager::setPermission(int entityId, const std::string& username, bool canRead, bool canWrite) {
-    std::string cmd = "FM_SET_PERMISSION|" + std::to_string(entityId) + "|" + username +
-                      "|" + (canRead ? "1" : "0") + "|" + (canWrite ? "1" : "0");
-    auto parts = split(sendCmd(cmd), '|');
-    return !parts.empty() && parts[0] == "OK";
-}
-
-bool RemoteFileManager::updateGroupPermissions(int entityId, bool canRead, bool canWrite) {
-    std::string cmd = "FM_UPDATE_GROUP_PERM|" + std::to_string(entityId) +
-                      "|" + (canRead ? "1" : "0") + "|" + (canWrite ? "1" : "0");
-    auto parts = split(sendCmd(cmd), '|');
-    return !parts.empty() && parts[0] == "OK";
-}
-
 bool RemoteFileManager::updateOthersPermissions(int entityId, bool canRead, bool canWrite) {
     std::string cmd = "FM_UPDATE_OTHERS_PERM|" + std::to_string(entityId) +
                       "|" + (canRead ? "1" : "0") + "|" + (canWrite ? "1" : "0");
@@ -97,8 +87,9 @@ bool RemoteFileManager::updateOthersPermissions(int entityId, bool canRead, bool
     return !parts.empty() && parts[0] == "OK";
 }
 
-bool RemoteFileManager::shareEntity(int entityId, const std::string& username) {
-    std::string cmd = "FM_SHARE|" + std::to_string(entityId) + "|" + username;
+bool RemoteFileManager::shareEntity(int entityId, const std::string& username, bool canRead, bool canWrite) {
+    std::string cmd = "FM_SHARE|" + std::to_string(entityId) + "|" + username +
+                      "|" + (canRead ? "1" : "0") + "|" + (canWrite ? "1" : "0");
     auto parts = split(sendCmd(cmd), '|');
     return !parts.empty() && parts[0] == "OK";
 }
@@ -109,41 +100,19 @@ bool RemoteFileManager::revokeShare(int entityId, const std::string& username) {
     return !parts.empty() && parts[0] == "OK";
 }
 
-std::vector<std::string> RemoteFileManager::getSharedWithList(int entityId) {
-    std::string cmd = "FM_GET_SHARED_WITH|" + std::to_string(entityId);
-    auto parts = split(sendCmd(cmd), '|');
-    std::vector<std::string> result;
-    if (parts.empty() || parts[0] != "OK") return result;
-    for (size_t i = 1; i < parts.size(); ++i) {
-        if (!parts[i].empty()) result.push_back(parts[i]);
-    }
-    return result;
-}
-
-bool RemoteFileManager::addUserToGroup(int entityId, const std::string& username) {
-    std::string cmd = "FM_ADD_USER_TO_GROUP|" + std::to_string(entityId) + "|" + username;
-    auto parts = split(sendCmd(cmd), '|');
-    return !parts.empty() && parts[0] == "OK";
-}
-
-bool RemoteFileManager::removeUserFromGroup(int entityId, const std::string& username) {
-    std::string cmd = "FM_REMOVE_USER_FROM_GROUP|" + std::to_string(entityId) + "|" + username;
-    auto parts = split(sendCmd(cmd), '|');
-    return !parts.empty() && parts[0] == "OK";
-}
-
 PermissionManager RemoteFileManager::loadPermissions(int entityId) {
     std::string cmd = "FM_LOAD_PERMISSIONS|" + std::to_string(entityId);
     auto parts = split(sendCmd(cmd), '|');
     PermissionManager pm;
-    // Expected: OK|groupCanRead|groupCanWrite|othersCanRead|othersCanWrite
-    if (parts.size() >= 5 && parts[0] == "OK") {
-        bool gRead  = parts[1] == "1";
-        bool gWrite = parts[2] == "1";
-        bool oRead  = parts[3] == "1";
-        bool oWrite = parts[4] == "1";
-        pm.addPermission(std::make_shared<GroupPermission>(gRead, gWrite));
+    if (parts.size() >= 3 && parts[0] == "OK") {
+        bool oRead  = parts[1] == "1";
+        bool oWrite = parts[2] == "1";
         pm.addPermission(std::make_shared<OthersPermission>(oRead, oWrite));
+        if (parts.size() >= 4 && !parts[3].empty()) {
+            auto up = std::make_shared<UserPermission>();
+            up->deserialize(parts[3]);
+            pm.addPermission(up);
+        }
     }
     return pm;
 }
@@ -152,6 +121,74 @@ int RemoteFileManager::getRootId() {
     auto parts = split(sendCmd("FM_GET_ROOT_ID"), '|');
     if (parts.size() >= 2 && parts[0] == "OK") return std::stoi(parts[1]);
     return 1;
+}
+
+int RemoteFileManager::getParentId(int entityId) const {
+    std::string cmd = "FM_GET_PARENT_ID|" + std::to_string(entityId);
+    auto parts = split(const_cast<RemoteFileManager*>(this)->sendCmd(cmd), '|');
+    if (parts.size() >= 2 && parts[0] == "OK") return std::stoi(parts[1]);
+    return 0;
+}
+
+std::vector<std::shared_ptr<FileSystemEntity>> RemoteFileManager::getChildren(int parentId) {
+    std::string cmd = "FM_GET_CHILDREN|" + std::to_string(parentId);
+    std::string resp = sendCmd(cmd);
+    std::cout << "getChildren resp: [" << resp << "]\n";
+
+    size_t sep = resp.find('|');
+    if (sep == std::string::npos || resp.substr(0, sep) != "OK") return {};
+
+    std::string jsonStr = resp.substr(sep + 1);
+    QJsonDocument doc = QJsonDocument::fromJson(QByteArray::fromStdString(jsonStr));
+    if (!doc.isArray()) return {};
+
+    std::vector<std::shared_ptr<FileSystemEntity>> children;
+    QJsonArray arr = doc.array();
+
+    for (const auto& val : arr) {
+        QJsonObject obj = val.toObject();
+        int id           = obj["id"].toInt();
+        std::string type = obj["type"].toString().toStdString();
+        std::string name = obj["name"].toString().toStdString();
+        std::string owner= obj["owner"].toString().toStdString();
+        std::time_t created  = (std::time_t)obj["createdAt"].toDouble();
+        std::time_t modified = (std::time_t)obj["modifiedAt"].toDouble();
+
+        std::shared_ptr<FileSystemEntity> entity;
+
+        if (type == "Folder") {
+            auto folder = std::make_shared<Folder>(name, owner, nullptr);
+            folder->setId(id);
+            folder->setCreatedAt(created);
+            folder->setModifiedAt(modified);
+            entity = folder;
+        } else if (type == "TextFile") {
+            std::string content = obj["content"].toString().toStdString();
+            auto tf = std::make_shared<TextFile>(name, owner, content);
+            tf->setId(id);
+            tf->setCreatedAt(created);
+            tf->setModifiedAt(modified);
+            entity = tf;
+        } else if (type == "BinaryFile") {
+            std::string ext = obj["extension"].toString().toStdString();
+            auto bf = std::make_shared<BinaryFile>(name, owner, ext);
+            bf->setId(id);
+            bf->setCreatedAt(created);
+            bf->setModifiedAt(modified);
+            entity = bf;
+        }
+
+        if (entity) children.push_back(entity);
+    }
+
+    return children;
+}
+
+int RemoteFileManager::getEntityId(const std::string& name, int parentId) {
+    std::string cmd = "FM_GET_ENTITY_ID|" + name + "|" + std::to_string(parentId);
+    auto parts = split(sendCmd(cmd), '|');
+    if (parts.size() >= 2 && parts[0] == "OK") return std::stoi(parts[1]);
+    return -1;
 }
 
 std::shared_ptr<Folder> RemoteFileManager::buildTree(int folderId, Folder* /*parent*/,
@@ -167,107 +204,58 @@ std::shared_ptr<Folder> RemoteFileManager::buildTree(int folderId, Folder* /*par
     if (!doc.isArray()) return nullptr;
 
     QJsonArray arr = doc.array();
-
     std::map<int, std::shared_ptr<FileSystemEntity>> entityMap;
     std::map<int, int> parentMap;
 
     for (const auto& val : arr) {
         QJsonObject obj = val.toObject();
-        int id       = obj["id"].toInt();
-        int parentId = obj["parentId"].toInt();
-        std::string type    = obj["type"].toString().toStdString();
-        std::string name    = obj["name"].toString().toStdString();
-        std::string owner   = obj["owner"].toString().toStdString();
-        std::string group   = obj["group"].toString().toStdString();
-        std::time_t created = (std::time_t)obj["createdAt"].toDouble();
-        std::time_t modified= (std::time_t)obj["modifiedAt"].toDouble();
+        int id          = obj["id"].toInt();
+        int pid         = obj["parentId"].toInt();
+        std::string type = obj["type"].toString().toStdString();
+        std::string name = obj["name"].toString().toStdString();
+        std::string owner= obj["owner"].toString().toStdString();
+        std::time_t created  = (std::time_t)obj["createdAt"].toDouble();
+        std::time_t modified = (std::time_t)obj["modifiedAt"].toDouble();
 
-        parentMap[id] = parentId;
+        parentMap[id] = pid;
 
         std::shared_ptr<FileSystemEntity> entity;
-
         if (type == "Folder") {
-            auto folder = std::make_shared<Folder>(name, owner, group, nullptr);
-            folder->setId(id);
-            folder->setCreatedAt(created);
-            folder->setModifiedAt(modified);
+            auto folder = std::make_shared<Folder>(name, owner, nullptr);
+            folder->setId(id); folder->setCreatedAt(created); folder->setModifiedAt(modified);
             entity = folder;
-        } else if (type == "SharedFolder") {
-            bool isPublic = obj["isPublic"].toInt() != 0;
-            auto sf = std::make_shared<SharedFolder>(name, owner, group, nullptr, isPublic);
-            sf->setId(id);
-            sf->setCreatedAt(created);
-            sf->setModifiedAt(modified);
-            entity = sf;
         } else if (type == "TextFile") {
             std::string content = obj["content"].toString().toStdString();
-            auto tf = std::make_shared<TextFile>(name, owner, group, content);
-            tf->setId(id);
-            tf->setCreatedAt(created);
-            tf->setModifiedAt(modified);
+            auto tf = std::make_shared<TextFile>(name, owner, content);
+            tf->setId(id); tf->setCreatedAt(created); tf->setModifiedAt(modified);
             entity = tf;
         } else if (type == "BinaryFile") {
             std::string ext = obj["extension"].toString().toStdString();
-            auto bf = std::make_shared<BinaryFile>(name, owner, group, ext);
-            bf->setId(id);
-            bf->setCreatedAt(created);
-            bf->setModifiedAt(modified);
+            auto bf = std::make_shared<BinaryFile>(name, owner, ext);
+            bf->setId(id); bf->setCreatedAt(created); bf->setModifiedAt(modified);
             entity = bf;
         }
-
-        if (entity) {
-            entityMap[id] = entity;
-        }
+        if (entity) entityMap[id] = entity;
     }
 
     std::shared_ptr<Folder> root = nullptr;
-
     for (auto& [id, entity] : entityMap) {
-        int parentId = parentMap[id];
-        if (parentId == 0) {
+        int pid = parentMap[id];
+        if (pid == 0) {
             root = std::dynamic_pointer_cast<Folder>(entity);
         } else {
-            auto it = entityMap.find(parentId);
+            auto it = entityMap.find(pid);
             if (it != entityMap.end()) {
                 auto parentFolder = std::dynamic_pointer_cast<Folder>(it->second);
                 if (parentFolder) {
                     if (entity->isFolder()) {
-                        auto childFolder = std::dynamic_pointer_cast<Folder>(entity);
-                        if (childFolder) childFolder->setParent(parentFolder.get());
+                        auto cf = std::dynamic_pointer_cast<Folder>(entity);
+                        if (cf) cf->setParent(parentFolder.get());
                     }
                     parentFolder->addChild(entity);
                 }
             }
         }
     }
-
     return root;
-}
-
-bool RemoteFileManager::createBinaryFile(const std::string& name, const std::string& ownerUser, const std::string& ownerGroup, const std::string& extension, int parentId) {
-    return false;
-}
-
-int RemoteFileManager::getEntityId(const std::string& name, int parentId) {
-    std::string resp = sendCmd("FM_BUILD_TREE|");
-    size_t sep = resp.find('|');
-    if (sep == std::string::npos || resp.substr(0, sep) != "OK") return -1;
-
-    std::string jsonStr = resp.substr(sep + 1);
-    QJsonDocument doc = QJsonDocument::fromJson(QByteArray::fromStdString(jsonStr));
-    if (!doc.isArray()) return -1;
-
-    QJsonArray arr = doc.array();
-
-    for (const auto& val : arr) {
-        QJsonObject obj = val.toObject();
-        if (obj["name"].toString().toStdString() == name && obj["parentId"].toInt() == parentId) {
-            return obj["id"].toInt();
-        }
-    }
-    return -1;
-}
-
-std::vector<std::shared_ptr<FileSystemEntity>> RemoteFileManager::getChildren(int parentId) {
-    return {};
 }

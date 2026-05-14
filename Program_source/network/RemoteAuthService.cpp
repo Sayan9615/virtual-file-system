@@ -20,6 +20,7 @@ std::vector<std::string> RemoteAuthService::split(const std::string& s, char del
 bool RemoteAuthService::initializeDatabase() { return true; }
 
 bool RemoteAuthService::registerUser(const std::string& username, const std::string& password) {
+    
     auto parts = split(sendCmd("AUTH_REGISTER|" + username + "|" + password), '|');
     return !parts.empty() && parts[0] == "OK";
 }
@@ -45,7 +46,7 @@ std::vector<std::pair<int, std::string>> RemoteAuthService::getAllUsers() {
 }
 
 bool RemoteAuthService::isAdmin(const std::string& username) {
-    return username == "admin"; // Verificare simpla locala pt admin
+    return username == "admin";
 }
 
 bool RemoteAuthService::deleteUser(const std::string& username) {

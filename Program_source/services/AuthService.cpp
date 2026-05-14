@@ -1,4 +1,5 @@
 #include "AuthService.h"
+#include "../external/PasswordHasher.h"
 #include <sqlite3.h>
 
 AuthService::AuthService(Database& db, Logger& logger) : db(db), logger(logger) {}
@@ -22,7 +23,7 @@ bool AuthService::initializeDatabase() {
         );
     )";
     if (db.execute(sql)) {
-        // Default admin
+        // Defaadminult 
         registerUser("admin", "admin");
         return true;
     }
@@ -43,14 +44,18 @@ bool AuthService::registerUser(const std::string& username, const std::string& p
 }
 
 bool AuthService::login(const std::string& username, const std::string& password) {
-    const char* sql = "SELECT id FROM users WHERE username = ? AND password = ?;";
+    const char* sql = "SELECT id FROM users WHERE username = ?";
     sqlite3_stmt* stmt = nullptr;
     if (sqlite3_prepare_v2(db.getConnection(), sql, -1, &stmt, nullptr) != SQLITE_OK) return false;
 
-    sqlite3_bind_text(stmt, 1, username.c_str(), -1, SQLITE_TRANSIENT);
-    sqlite3_bind_text(stmt, 2, password.c_str(), -1, SQLITE_TRANSIENT);
 
+    sqlite3_bind_text(stmt, 1, username.c_str(), -1, SQLITE_TRANSIENT);
     bool success = (sqlite3_step(stmt) == SQLITE_ROW);
+    if(sqlite3_step(stmt) == SQLITE_ROW){
+        std::string password_hash = reinterpret_cast<const char*>(sqlite3_column_text(stmt,1));
+        PasswordHasher::initialize_sodium();
+        success = PasswordHasher::verifyPassword(password,password_hash);
+    }
     sqlite3_finalize(stmt);
     return success;
 }

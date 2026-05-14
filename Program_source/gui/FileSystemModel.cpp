@@ -3,78 +3,89 @@
 #include "../filesystem/BinaryFile.h"
 #include <QIcon>
 #include <QFont>
-#include <QColor>
+#include <algorithm>
 
-FileSystemModel::FileSystemModel(Folder* root, QObject* parent)
-    : QAbstractItemModel(parent), m_root(root)
-{}
+FileSystemModel::FileSystemModel(IFileManager& fm,
+                                 const std::string& username,
+                                 int rootId,
+                                 QObject* parent)
+    : QAbstractItemModel(parent), m_fm(fm),
+      m_username(username), m_rootId(rootId),
+      m_currentFolderId(rootId), m_currentPath("/ (root)")
+{
+    loadChildren(false);
+}
+
+void FileSystemModel::loadChildren(bool filterPermissions) {
+    m_children = m_fm.getChildren(m_currentFolderId);
+}
+
+void FileSystemModel::navigateTo(int folderId, const std::string& folderName) {
+    m_history.push(m_currentFolderId);
+    m_pathHistory.push(m_currentPath);
+    m_currentFolderId = folderId;
+    m_currentPath = m_currentPath == "/ (root)"
+        ? "/" + folderName
+        : m_currentPath + "/" + folderName;
+    loadChildren(true);
+    beginResetModel();
+    endResetModel();
+}
+
+void FileSystemModel::goBack() {
+    if (m_history.empty()) return;
+    m_currentFolderId = m_history.top();
+    m_history.pop();
+    m_currentPath = m_pathHistory.top();
+    m_pathHistory.pop();
+    loadChildren(m_currentFolderId != m_rootId);
+    beginResetModel();
+    endResetModel();
+}
+
+bool FileSystemModel::canGoBack() const {
+    return !m_history.empty();
+}
+
+int FileSystemModel::currentFolderId() const {
+    return m_currentFolderId;
+}
+
+std::string FileSystemModel::currentPath() const {
+    return m_currentPath;
+}
+
+void FileSystemModel::refresh() {
+    loadChildren(m_currentFolderId != m_rootId);
+    beginResetModel();
+    endResetModel();
+}
 
 QModelIndex FileSystemModel::index(int row, int column,
                                    const QModelIndex& parent) const {
-    if (!hasIndex(row, column, parent)) return QModelIndex();
-
-    Folder* parentFolder = nullptr;
-
-    if (!parent.isValid()) {
-        parentFolder = m_root;
-    } else {
-        auto* entity = static_cast<FileSystemEntity*>(parent.internalPointer());
-        parentFolder = dynamic_cast<Folder*>(entity);
-    }
-
-    if (!parentFolder) return QModelIndex();
-
-    auto children = parentFolder->getChildren();
-    if (row >= (int)children.size()) return QModelIndex();
-
-    return createIndex(row, column, children[row].get());
+    if (parent.isValid()) return QModelIndex();
+    if (row < 0 || row >= (int)m_children.size()) return QModelIndex();
+    return createIndex(row, column, m_children[row].get());
 }
 
 QModelIndex FileSystemModel::parent(const QModelIndex& child) const {
-    if (!child.isValid()) return QModelIndex();
-
-    auto* entity = static_cast<FileSystemEntity*>(child.internalPointer());
-    if (!entity || entity == m_root) return QModelIndex();
-
-    // gasim parintele entitatii
-    Folder* parentFolder = findParent(m_root, entity);
-    if (!parentFolder || parentFolder == m_root) return QModelIndex();
-
-    // gasim parintele parintelui
-    Folder* grandParent = findParent(m_root, parentFolder);
-    if (!grandParent) return QModelIndex();
-
-    // gasim indexul parintelui in bunic
-    auto children = grandParent->getChildren();
-    for (int i = 0; i < (int)children.size(); i++) {
-        if (children[i].get() == parentFolder) {
-            return createIndex(i, 0, parentFolder);
-        }
-    }
+    Q_UNUSED(child);
     return QModelIndex();
 }
 
 int FileSystemModel::rowCount(const QModelIndex& parent) const {
-    Folder* parentFolder = nullptr;
-
-    if (!parent.isValid()) {
-        parentFolder = m_root;
-    } else {
-        auto* entity = static_cast<FileSystemEntity*>(parent.internalPointer());
-        parentFolder = dynamic_cast<Folder*>(entity);
-    }
-
-    if (!parentFolder) return 0;
-    return parentFolder->getChildCount();
+    if (parent.isValid()) return 0;
+    return (int)m_children.size();
 }
 
 int FileSystemModel::columnCount(const QModelIndex& parent) const {
     Q_UNUSED(parent);
-    return 4; // Nume | Tip | Dimensiune | Data crearii
+    return 4;
 }
 
 QVariant FileSystemModel::data(const QModelIndex& index, int role) const {
     if (!index.isValid()) return QVariant();
+    if (index.row() < 0 || index.row() >= (int)m_children.size()) return QVariant();
 
     auto* entity = static_cast<FileSystemEntity*>(index.internalPointer());
     if (!entity) return QVariant();
@@ -82,10 +93,11 @@ QVariant FileSystemModel::data(const QModelIndex& index, int role) const {
     if (role == Qt::DisplayRole) {
         switch (index.column()) {
         case 0: return QString::fromStdString(entity->getName());
-        case 1: return entity->isFolder() ? "Folder" :
-                       QString::fromStdString(
-                           dynamic_cast<File*>(entity) ?
-                               dynamic_cast<File*>(entity)->getExtension() : "");
+        case 1: {
+            if (entity->isFolder()) return "Folder";
+            auto* f = dynamic_cast<File*>(entity);
+            return f ? QString::fromStdString(f->getExtension()) : "";
+        }
         case 2: return QString::number(entity->getSize()) + " B";
         case 3: {
             std::time_t t = entity->getCreatedAt();
@@ -98,11 +110,7 @@ QVariant FileSystemModel::data(const QModelIndex& index, int role) const {
     }
 
     if (role == Qt::DecorationRole && index.column() == 0) {
-        if (entity->isFolder()) {
-            auto* sf = dynamic_cast<SharedFolder*>(entity);
-            return QIcon(sf ? ":/icons/folder_shared.png" : ":/icons/folder.png");
-        }
-
+        if (entity->isFolder()) return QIcon(":/icons/folder.png");
         auto* file = dynamic_cast<File*>(entity);
         if (file) {
             std::string ext = file->getExtension();
@@ -119,12 +127,6 @@ QVariant FileSystemModel::data(const QModelIndex& index, int role) const {
         QFont font;
         if (entity->isFolder()) font.setBold(true);
         return font;
-    }
-
-    if (role == Qt::ForegroundRole) {
-        auto* sf = dynamic_cast<SharedFolder*>(entity);
-        if (sf) return QColor(0, 120, 215); // albastru pentru shared
-        return QVariant();
     }
 
     return QVariant();
@@ -146,25 +148,6 @@ QVariant FileSystemModel::headerData(int section,
 }
 
 FileSystemEntity* FileSystemModel::entityFromIndex(const QModelIndex& index) const {
-    if (!index.isValid()) return m_root;
+    if (!index.isValid()) return nullptr;
     return static_cast<FileSystemEntity*>(index.internalPointer());
-}
-
-Folder* FileSystemModel::findParent(Folder* current, FileSystemEntity* target) const {
-    auto children = current->getChildren();
-    for (const auto& child : children) {
-        if (child.get() == target) return current;
-
-        auto* subFolder = dynamic_cast<Folder*>(child.get());
-        if (subFolder) {
-            Folder* result = findParent(subFolder, target);
-            if (result) return result;
-        }
-    }
-    return nullptr;
-}
-
-void FileSystemModel::refresh() {
-    beginResetModel();
-    endResetModel();
 }

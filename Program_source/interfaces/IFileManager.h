@@ -16,19 +16,16 @@ public:
     // ── Creare ───────────────────────────────────────
     virtual bool createTextFile(const std::string& name,
                                 const std::string& ownerUser,
-                                const std::string& ownerGroup,
                                 const std::string& content,
                                 int parentId = 1) = 0;
 
     virtual bool createBinaryFile(const std::string& name,
                                   const std::string& ownerUser,
-                                  const std::string& ownerGroup,
                                   const std::string& extension,
                                   int parentId = 1) = 0;
 
     virtual bool createFolder(const std::string& name,
                               const std::string& ownerUser,
-                              const std::string& ownerGroup,
                               int parentId = 1) = 0;
 
     // ── Modificare ───────────────────────────────────
@@ -39,7 +36,6 @@ public:
     virtual bool deleteEntity(int id,
                               const std::string& username) = 0;
 
-    // 🔥 Adăugat: updateTextFile
     virtual bool updateTextFile(int id,
                                 const std::string& content,
                                 const std::string& username) = 0;
@@ -49,15 +45,6 @@ public:
                                  const std::string& username,
                                  const std::string& operation) = 0;
 
-    virtual bool setPermission(int entityId,
-                               const std::string& username,
-                               bool canRead,
-                               bool canWrite) = 0;
-
-    virtual bool updateGroupPermissions(int entityId,
-                                        bool canRead,
-                                        bool canWrite) = 0;
-
     virtual bool updateOthersPermissions(int entityId,
                                          bool canRead,
                                          bool canWrite) = 0;
@@ -66,19 +53,12 @@ public:
 
     // ── Partajare ────────────────────────────────────
     virtual bool shareEntity(int entityId,
-                             const std::string& username) = 0;
+                             const std::string& username,
+                             bool canRead,
+                             bool canWrite) = 0;
 
     virtual bool revokeShare(int entityId,
                              const std::string& username) = 0;
-
-    virtual std::vector<std::string> getSharedWithList(
-        int entityId) = 0;
-
-    virtual bool addUserToGroup(int entityId,
-                                const std::string& username) = 0;
-
-    virtual bool removeUserFromGroup(int entityId,
-                                     const std::string& username) = 0;
 
     // ── Navigare / Arbore ────────────────────────────
     virtual int getRootId() = 0;
@@ -93,4 +73,6 @@ public:
         int folderId,
         Folder* parent = nullptr,
         const std::string& username = "") = 0;
+
+    virtual int getParentId(int entityId) const = 0;
 };

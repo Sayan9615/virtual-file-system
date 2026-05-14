@@ -3,7 +3,6 @@
 #include <algorithm>
 
 PermissionManager::PermissionManager() {
-    // Permisiuni default
     permissions.push_back(std::make_shared<OthersPermission>(false, false));
 }
 
@@ -32,20 +31,15 @@ bool PermissionManager::canWrite(const std::string& username) const {
 }
 
 bool PermissionManager::check(const std::string& username, const std::string& operation) const {
-    // Prioritate: OWNER > GROUP > OTHERS
     for (const auto& perm : permissions) {
         if (perm->getType() == "OWNER") {
             auto owner = std::dynamic_pointer_cast<OwnerPermission>(perm);
             if (owner && owner->check(username, operation)) return true;
         }
-    }
-    for (const auto& perm : permissions) {
-        if (perm->getType() == "GROUP") {
-            auto group = std::dynamic_pointer_cast<GroupPermission>(perm);
-            if (group && group->check(username, operation)) return true;
+        if (perm->getType() == "USER") {
+            auto user = std::dynamic_pointer_cast<UserPermission>(perm);
+            if (user && user->check(username, operation)) return true;
         }
-    }
-    for (const auto& perm : permissions) {
         if (perm->getType() == "OTHERS") {
             return perm->check(username, operation);
         }
@@ -61,10 +55,10 @@ std::shared_ptr<OwnerPermission> PermissionManager::getOwnerPermission() const {
     return nullptr;
 }
 
-std::shared_ptr<GroupPermission> PermissionManager::getGroupPermission() const {
+std::shared_ptr<UserPermission> PermissionManager::getUserPermission() const {
     for (const auto& perm : permissions) {
-        if (perm->getType() == "GROUP")
-            return std::dynamic_pointer_cast<GroupPermission>(perm);
+        if (perm->getType() == "USER")
+            return std::dynamic_pointer_cast<UserPermission>(perm);
     }
     return nullptr;
 }

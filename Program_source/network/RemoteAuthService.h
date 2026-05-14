@@ -1,5 +1,5 @@
 #pragma once
-#include "../services/IAuthService.h"
+#include "../interfaces/IAuthService.h"
 #include "SocketClient.h"
 #include <string>
 #include <vector>

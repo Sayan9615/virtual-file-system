@@ -25,13 +25,18 @@ int main(int argc, char* argv[]) {
 
     std::string username = loginDlg.getUsername().toStdString();
 
-    auto rootFolder = fm.buildTree(fm.getRootId(), nullptr, username);
-    if (!rootFolder) {
-        QMessageBox::critical(nullptr, "Eroare", "Nu s-a putut incarca sistemul de fisiere!");
-        return 1;
+    try {
+    int userFolderId = fm.getEntityId(username, fm.getRootId());
+    if (userFolderId == -1) {
+        fm.createFolder(username, username, fm.getRootId());
+    }
+    } catch (...) {
+        // folderul exista deja, ignoram
     }
 
-    MainWindow window(rootFolder.get(), username, fm, auth);
+    std::cout << "Inainte de MainWindow\n";
+    MainWindow window(username, fm, auth);
+    std::cout << "Dupa MainWindow\n";
     window.show();
 
     return app.exec();

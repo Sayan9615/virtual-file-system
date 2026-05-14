@@ -5,47 +5,42 @@
 
 class File : public FileSystemEntity, public iSearchable
 {
-    protected:
-        std::string m_extension;
-        std::size_t m_size;
+protected:
+    std::string m_extension;
+    std::size_t m_size;
 
-    public:
-        File(const std::string& name,const std::string& ownerUser,const std::string& ownerGroup, const std::string& extension=".txt");
-        File(const File& other);
-        File(File && other)noexcept;
-        
-        //operatori de atribuire
-        File& operator=(const File& other);
-        File& operator=(File&&other) noexcept;
+public:
+    File(const std::string& name, const std::string& ownerUser, const std::string& extension = ".txt");
+    File(const File& other);
+    File(File&& other) noexcept;
 
-        virtual ~File()=default;
+    File& operator=(const File& other);
+    File& operator=(File&& other) noexcept;
 
-        //getteri
-        std::string getExtension()const{return this->m_extension;}
-        std::size_t getSize()const{return this->m_size;}
+    virtual ~File() = default;
 
-        //setteri
-        void setExtension(const std::string& extension);
+    std::string getExtension() const { return m_extension; }
+    std::size_t getSize() const { return m_size; }
 
-        bool isFolder()const override{return false;}
+    void setExtension(const std::string& extension);
 
-        virtual std::string read() const =0;
-        virtual void write(const std::string &content)=0;
+    bool isFolder() const override { return false; }
 
-        std::string serialize() const override;
-        void deserialize(const std::string &data)override;
-        
-        void display()const override;
-        std::string getIcon()const override;
+    virtual std::string read() const = 0;
+    virtual void write(const std::string& content) = 0;
 
-        std::vector<std::string> search(const std::string&text)const override;
-        bool contains(const std::string& data)const override;
+    std::string serialize() const override;
+    void deserialize(const std::string& data) override;
 
-        bool operator==(const File& other)const;
-        bool operator<(const File& other)const; //sortare dupa marime
-        bool operator>(const File& other)const;
+    void display() const override;
+    std::string getIcon() const override;
 
-        friend std::ostream& operator<<(std::ostream& os,const File& file);
+    std::vector<std::string> search(const std::string& text) const override;
+    bool contains(const std::string& data) const override;
 
+    bool operator==(const File& other) const;
+    bool operator<(const File& other) const;
+    bool operator>(const File& other) const;
 
+    friend std::ostream& operator<<(std::ostream& os, const File& file);
 };

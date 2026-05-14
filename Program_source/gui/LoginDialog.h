@@ -6,7 +6,7 @@
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QFormLayout>
-#include "../services/IAuthService.h"
+#include "../interfaces/IAuthService.h"
 #include "../exceptions/AuthException.h"
 #include "../exceptions/AppException.h"
 
