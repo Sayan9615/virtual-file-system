@@ -11,30 +11,24 @@ FileSystemModel::FileSystemModel(IFileManager& fm,
                                  QObject* parent)
     : QAbstractItemModel(parent), m_fm(fm),
       m_username(username), m_rootId(rootId),
-      m_currentFolderId(rootId)
+      m_currentFolderId(rootId), m_currentPath("/ (root)")
 {
-    loadChildren(false); // primul nivel — fara filtrare
+    loadChildren(false);
 }
 
 void FileSystemModel::loadChildren(bool filterPermissions) {
     m_children = m_fm.getChildren(m_currentFolderId);
-
-    if (filterPermissions) {
-        m_children.erase(
-            std::remove_if(m_children.begin(), m_children.end(),
-                [&](const std::shared_ptr<FileSystemEntity>& e) {
-                    return !m_fm.checkPermission(e->getId(), m_username, "read");
-                }),
-            m_children.end()
-        );
-    }
 }
 
-void FileSystemModel::navigateTo(int folderId) {
-    beginResetModel();
+void FileSystemModel::navigateTo(int folderId, const std::string& folderName) {
     m_history.push(m_currentFolderId);
+    m_pathHistory.push(m_currentPath);
     m_currentFolderId = folderId;
+    m_currentPath = m_currentPath == "/ (root)"
+        ? "/" + folderName
+        : m_currentPath + "/" + folderName;
     loadChildren(true);
+    beginResetModel();
     endResetModel();
 }
 
@@ -42,9 +36,10 @@ void FileSystemModel::goBack() {
     if (m_history.empty()) return;
     m_currentFolderId = m_history.top();
     m_history.pop();
-    beginResetModel();
-    // daca ne intoarcem la root, fara filtrare
+    m_currentPath = m_pathHistory.top();
+    m_pathHistory.pop();
     loadChildren(m_currentFolderId != m_rootId);
+    beginResetModel();
     endResetModel();
 }
 
@@ -56,9 +51,13 @@ int FileSystemModel::currentFolderId() const {
     return m_currentFolderId;
 }
 
+std::string FileSystemModel::currentPath() const {
+    return m_currentPath;
+}
+
 void FileSystemModel::refresh() {
-    beginResetModel();
     loadChildren(m_currentFolderId != m_rootId);
+    beginResetModel();
     endResetModel();
 }
 
@@ -111,9 +110,7 @@ QVariant FileSystemModel::data(const QModelIndex& index, int role) const {
     }
 
     if (role == Qt::DecorationRole && index.column() == 0) {
-        if (entity->isFolder())
-            return QIcon(":/icons/folder.png");
-
+        if (entity->isFolder()) return QIcon(":/icons/folder.png");
         auto* file = dynamic_cast<File*>(entity);
         if (file) {
             std::string ext = file->getExtension();

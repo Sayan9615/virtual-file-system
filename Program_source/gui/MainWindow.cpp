@@ -136,7 +136,6 @@ void MainWindow::setupUI() {
     mainLayout->setContentsMargins(0, 0, 0, 0);
     mainLayout->setSpacing(0);
 
-    // ── Top bar ───────────────────────────────────────
     auto* topBar    = new QWidget(this);
     auto* topLayout = new QHBoxLayout(topBar);
     topLayout->setContentsMargins(8, 6, 8, 6);
@@ -164,7 +163,6 @@ void MainWindow::setupUI() {
     topLayout->addWidget(m_searchBar);
     topLayout->addWidget(searchBtn);
 
-    // ── Model si TreeView ─────────────────────────────
     m_model = new FileSystemModel(m_fm, m_currentUser, m_fm.getRootId(), this);
 
     m_treeView = new QTreeView(this);
@@ -175,7 +173,7 @@ void MainWindow::setupUI() {
     m_treeView->setSortingEnabled(false);
     m_treeView->header()->setSectionsClickable(true);
     m_treeView->header()->setSortIndicatorShown(true);
-    m_treeView->setRootIsDecorated(false); // model plat, fara expand arrows
+    m_treeView->setRootIsDecorated(false);
 
     m_treeView->header()->setSectionResizeMode(0, QHeaderView::Stretch);
     m_treeView->header()->resizeSection(1, 80);
@@ -183,7 +181,6 @@ void MainWindow::setupUI() {
     m_treeView->header()->resizeSection(3, 140);
     m_treeView->setMinimumWidth(400);
 
-    // ── Right panel ───────────────────────────────────
     auto* rightPanel  = new QWidget(this);
     auto* rightLayout = new QVBoxLayout(rightPanel);
     rightLayout->setContentsMargins(8, 8, 8, 8);
@@ -232,11 +229,11 @@ void MainWindow::setupUI() {
     mainLayout->addWidget(m_statusLabel);
     setCentralWidget(centralWidget);
 
-    // ── Connections ───────────────────────────────────
+    // ── Back button ───────────────────────────────────
     connect(m_backButton, &QPushButton::clicked, this, [this]() {
         m_model->goBack();
         m_backButton->setEnabled(m_model->canGoBack());
-        m_addressBar->setText(QString("Folder id: %1").arg(m_model->currentFolderId()));
+        m_addressBar->setText(QString::fromStdString(m_model->currentPath()));
         m_statusLabel->setText(QString("%1 elemente").arg(m_model->rowCount()));
     });
 
@@ -251,7 +248,7 @@ void MainWindow::setupUI() {
     connect(m_searchResults, &QListWidget::itemClicked,
             this, &MainWindow::onSearchResultClicked);
 
-    // dublu click — intra in folder sau editeaza fisier
+    // ── Dublu click ───────────────────────────────────
     connect(m_treeView, &QTreeView::doubleClicked,
             this, [this](const QModelIndex& index) {
                 if (!index.isValid()) return;
@@ -259,23 +256,18 @@ void MainWindow::setupUI() {
                 if (!entity) return;
 
                 if (entity->isFolder()) {
-                    int folderId = entity->getId();
-                    QString folderName = QString::fromStdString(entity->getName());
-                    m_model->navigateTo(folderId);
+                    m_model->navigateTo(entity->getId(), entity->getName());
                     m_backButton->setEnabled(m_model->canGoBack());
-                    m_addressBar->setText(folderName);
-                    m_statusLabel->setText(
-                        QString("%1 elemente").arg(m_model->rowCount()));
+                    m_addressBar->setText(QString::fromStdString(m_model->currentPath()));
+                    m_statusLabel->setText(QString("%1 elemente").arg(m_model->rowCount()));
                 } else {
                     showEditDialog(entity);
                 }
             });
 
-    m_addressBar->setText("/ (root)");
+    m_addressBar->setText(QString::fromStdString(m_model->currentPath()));
     m_statusLabel->setText(QString("%1 elemente").arg(m_model->rowCount()));
 }
-
-// ── Permisiuni ────────────────────────────────────────
 
 bool MainWindow::checkWritePermission(FileSystemEntity* entity) {
     if (!entity) return false;
@@ -306,8 +298,6 @@ bool MainWindow::checkReadPermission(FileSystemEntity* entity) {
     }
     return true;
 }
-
-// ── Admin Panel ───────────────────────────────────────
 
 void MainWindow::onAdminPanel() {
     if (!m_auth.isAdmin(m_currentUser)) {
@@ -405,18 +395,13 @@ void MainWindow::onAdminPanel() {
     dialog.exec();
 }
 
-// ── Navigare ─────────────────────────────────────────
-
 void MainWindow::onItemSelected(const QModelIndex& index) {
     if (!index.isValid()) return;
     auto* entity = m_model->entityFromIndex(index);
     if (!entity) return;
-
     showPreview(entity);
     updateStatusBar(entity);
 }
-
-// ── Cautare ──────────────────────────────────────────
 
 void MainWindow::onSearchTriggered() {
     QString query = m_searchBar->text().trimmed();
@@ -424,11 +409,6 @@ void MainWindow::onSearchTriggered() {
 
     m_searchResults->clear();
 
-    // pentru search construim arborele din folderul curent
-    auto root = std::dynamic_pointer_cast<Folder>(
-        std::shared_ptr<Folder>(new Folder("search_root", "system")));
-
-    // folosim buildTree din folderul curent pentru search
     auto tree = m_fm.buildTree(m_model->currentFolderId(), nullptr, m_currentUser);
     if (!tree) {
         m_searchResults->addItem("Niciun rezultat.");
@@ -460,16 +440,13 @@ void MainWindow::onSearchTriggered() {
 void MainWindow::onSearchResultClicked(QListWidgetItem* item) {
     if (!item) return;
     int entityId = item->data(Qt::UserRole).toInt();
-    // navigam la parintele entitatii
     int parentId = m_fm.getParentId(entityId);
     if (parentId > 0) {
-        m_model->navigateTo(parentId);
+        m_model->navigateTo(parentId, std::to_string(parentId));
         m_backButton->setEnabled(m_model->canGoBack());
-        m_addressBar->setText(QString("Folder id: %1").arg(parentId));
+        m_addressBar->setText(QString::fromStdString(m_model->currentPath()));
     }
 }
-
-// ── Creare fisier ─────────────────────────────────────
 
 void MainWindow::onNewFile() {
     int parentId = m_model->currentFolderId();
@@ -543,8 +520,6 @@ void MainWindow::onNewFile() {
     }
 }
 
-// ── Creare folder ─────────────────────────────────────
-
 void MainWindow::onNewFolder() {
     int parentId = m_model->currentFolderId();
 
@@ -567,8 +542,6 @@ void MainWindow::onNewFolder() {
         QMessageBox::warning(this, "Eroare", QString::fromStdString(e.what()));
     }
 }
-
-// ── Editare ───────────────────────────────────────────
 
 void MainWindow::onEditFile() {
     auto index = m_treeView->currentIndex();
@@ -648,8 +621,6 @@ void MainWindow::showEditDialog(FileSystemEntity* entity) {
 
     dialog.exec();
 }
-
-// ── Open External ─────────────────────────────────────
 
 void MainWindow::onOpenExternal(FileSystemEntity* entityOverride) {
     FileSystemEntity* entity = entityOverride;
@@ -734,8 +705,6 @@ void MainWindow::onOpenExternal(FileSystemEntity* entityOverride) {
     }
 }
 
-// ── Redenumire ────────────────────────────────────────
-
 void MainWindow::onRename() {
     auto index = m_treeView->currentIndex();
     if (!index.isValid()) return;
@@ -762,8 +731,6 @@ void MainWindow::onRename() {
     }
 }
 
-// ── Stergere ─────────────────────────────────────────
-
 void MainWindow::onDelete() {
     auto index = m_treeView->currentIndex();
     if (!index.isValid()) return;
@@ -786,8 +753,6 @@ void MainWindow::onDelete() {
         QMessageBox::warning(this, "Eroare", QString::fromStdString(e.what()));
     }
 }
-
-// ── Context Menu ──────────────────────────────────────
 
 void MainWindow::onContextMenu(const QPoint& pos) {
     QModelIndex index = m_treeView->indexAt(pos);
@@ -848,8 +813,6 @@ void MainWindow::onContextMenu(const QPoint& pos) {
     if (shareAction && selected == shareAction) { showShareDialog(entity); return; }
     if (propertiesAction && selected == propertiesAction) { showPropertiesDialog(entity); return; }
 }
-
-// ── Share Dialog ──────────────────────────────────────
 
 void MainWindow::onShareDialog() {
     auto index = m_treeView->currentIndex();
@@ -958,8 +921,6 @@ void MainWindow::showShareDialog(FileSystemEntity* entity) {
     }
 }
 
-// ── Proprietati ───────────────────────────────────────
-
 void MainWindow::onProperties() {
     auto index = m_treeView->currentIndex();
     if (!index.isValid()) return;
@@ -1048,8 +1009,6 @@ void MainWindow::showPropertiesDialog(FileSystemEntity* entity) {
 
     dialog.exec();
 }
-
-// ── Preview ───────────────────────────────────────────
 
 void MainWindow::showPreview(FileSystemEntity* entity) {
     if (!entity) return;

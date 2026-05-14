@@ -8,6 +8,7 @@
 #include <stack>
 #include <vector>
 #include <memory>
+#include <string>
 #include "../filesystem/Folder.h"
 #include "../filesystem/File.h"
 #include "../filesystem/TextFile.h"
@@ -34,10 +35,11 @@ public:
 
     FileSystemEntity* entityFromIndex(const QModelIndex& index) const;
 
-    void navigateTo(int folderId);
+    void navigateTo(int folderId, const std::string& folderName);
     void goBack();
     bool canGoBack() const;
     int currentFolderId() const;
+    std::string currentPath() const;
 
     void refresh();
 
@@ -46,7 +48,9 @@ private:
     std::string m_username;
     int m_rootId;
     int m_currentFolderId;
+    std::string m_currentPath;
     std::stack<int> m_history;
+    std::stack<std::string> m_pathHistory;
     std::vector<std::shared_ptr<FileSystemEntity>> m_children;
 
     void loadChildren(bool filterPermissions);
