@@ -45,6 +45,10 @@ public:
                                  const std::string& username,
                                  const std::string& operation) = 0;
 
+    virtual bool checkDirectPermission(int entityId,
+                                       const std::string& username,
+                                       const std::string& operation) = 0;
+
     virtual bool updateOthersPermissions(int entityId,
                                          bool canRead,
                                          bool canWrite) = 0;
@@ -67,7 +71,7 @@ public:
                             int parentId) = 0;
 
     virtual std::vector<std::shared_ptr<FileSystemEntity>>
-    getChildren(int parentId) = 0;
+    getChildren(int parentId, const std::string& username = "") = 0;
 
     virtual std::shared_ptr<Folder> buildTree(
         int folderId,

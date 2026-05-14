@@ -17,10 +17,12 @@ FileSystemModel::FileSystemModel(IFileManager& fm,
 }
 
 void FileSystemModel::loadChildren(bool filterPermissions) {
-    m_children = m_fm.getChildren(m_currentFolderId);
+    const std::string& user = filterPermissions ? m_username : "";
+    m_children = m_fm.getChildren(m_currentFolderId, user);
 }
 
 void FileSystemModel::navigateTo(int folderId, const std::string& folderName) {
+    beginResetModel();
     m_history.push(m_currentFolderId);
     m_pathHistory.push(m_currentPath);
     m_currentFolderId = folderId;
@@ -28,18 +30,17 @@ void FileSystemModel::navigateTo(int folderId, const std::string& folderName) {
         ? "/" + folderName
         : m_currentPath + "/" + folderName;
     loadChildren(true);
-    beginResetModel();
     endResetModel();
 }
 
 void FileSystemModel::goBack() {
     if (m_history.empty()) return;
+    beginResetModel();
     m_currentFolderId = m_history.top();
     m_history.pop();
     m_currentPath = m_pathHistory.top();
     m_pathHistory.pop();
     loadChildren(m_currentFolderId != m_rootId);
-    beginResetModel();
     endResetModel();
 }
 
@@ -56,8 +57,8 @@ std::string FileSystemModel::currentPath() const {
 }
 
 void FileSystemModel::refresh() {
-    loadChildren(m_currentFolderId != m_rootId);
     beginResetModel();
+    loadChildren(m_currentFolderId != m_rootId);
     endResetModel();
 }
 

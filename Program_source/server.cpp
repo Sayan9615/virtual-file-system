@@ -4,6 +4,7 @@
 #include <vector>
 #include <cstdio>
 #include <cstring>
+#include <cctype>
 #include <thread>
 #include <mutex>
 #include <winsock2.h>
@@ -26,11 +27,26 @@ ConsoleLogger g_logger;
 AuthService* g_auth = nullptr;
 FileManager* g_fm   = nullptr;
 
+constexpr unsigned int MAX_MESSAGE_SIZE = 50u * 1024u * 1024u;
+
+static bool isHexHeader(const char* buffer) {
+    for (int i = 0; i < 8; ++i) {
+        if (!isxdigit(static_cast<unsigned char>(buffer[i])))
+            return false;
+    }
+    return true;
+}
+
 static bool sendMsg(SOCKET sock, const string& msg) {
     char lenBuf[9];
     snprintf(lenBuf, sizeof(lenBuf), "%08X", (unsigned int)msg.size());
-    int sent = send(sock, lenBuf, 8, 0);
-    if (sent != 8) return false;
+    int headerSent = 0;
+    while (headerSent < 8) {
+        int sent = send(sock, lenBuf + headerSent, 8 - headerSent, 0);
+        if (sent <= 0) return false;
+        headerSent += sent;
+    }
+
     size_t total = 0;
     while (total < msg.size()) {
         int n = send(sock, msg.c_str() + total, (int)(msg.size() - total), 0);
@@ -49,8 +65,11 @@ static string recvMsg(SOCKET sock) {
         total += n;
     }
     unsigned int msgLen = 0;
+    if (!isHexHeader(lenBuf)) return "";
     sscanf(lenBuf, "%08X", &msgLen);
     if (msgLen == 0) return "";
+    if (msgLen > MAX_MESSAGE_SIZE) return "";
+
     string result(msgLen, '\0');
     size_t received = 0;
     while (received < msgLen) {
@@ -105,12 +124,13 @@ static string serializeEntityToJson(FileSystemEntity* entity, int parentId) {
     json += "\"owner\":\"" + jsonEscapeStr(entity->getOwnerUser()) + "\",";
     json += "\"parentId\":" + to_string(parentId) + ",";
     json += "\"createdAt\":" + to_string((long long)entity->getCreatedAt()) + ",";
-    json += "\"modifiedAt\":" + to_string((long long)entity->getModifiedAt());
+    json += "\"modifiedAt\":" + to_string((long long)entity->getModifiedAt()) + ",";
+    json += "\"size\":" + to_string((unsigned long long)entity->getSize());
 
     if (auto* tf = dynamic_cast<TextFile*>(entity)) {
         json += ",\"content\":\"" + jsonEscapeStr(tf->read()) + "\"";
     } else if (auto* bf = dynamic_cast<BinaryFile*>(entity)) {
-        json += ",\"extension\":\"" + jsonEscapeStr(bf->getExtension()) + "\",\"size\":" + to_string(bf->getSize());
+        json += ",\"extension\":\"" + jsonEscapeStr(bf->getExtension()) + "\"";
     }
 
     json += "}";
@@ -200,7 +220,13 @@ void handleClient(SOCKET clientSocket) {
             else if (cmd == "AUTH_DELETE_USER") {
                 if (parts.size() < 2) { response = "ERR|missing args"; }
                 else {
-                    bool ok = g_auth->deleteUser(parts[1]);
+                    string deletedUsername = parts[1];
+                    int userFolderId = g_fm->getEntityId(deletedUsername, g_fm->getRootId());
+                    bool folderOk = true;
+                    if (userFolderId > 1)
+                        folderOk = g_fm->deleteEntityTree(userFolderId, "admin");
+                    bool ok = folderOk && g_auth->deleteUser(deletedUsername);
+
                     response = ok ? "OK" : "ERR|delete user failed";
                 }
             }
@@ -248,29 +274,44 @@ void handleClient(SOCKET clientSocket) {
                 if (parts.size() < 5) { response = "ERR|missing args"; }
                 else {
                     int parentId = stoi(parts[3]);
-                    string content;
-                    for (size_t i = 4; i < parts.size(); ++i) {
-                        if (i > 4) content += "|";
-                        content += parts[i];
+                    string username = parts[2];
+                    if (!g_fm->checkDirectPermission(parentId, username, "write")) {
+                        response = "ERR|permission denied";
+                    } else {
+                        string content;
+                        for (size_t i = 4; i < parts.size(); ++i) {
+                            if (i > 4) content += "|";
+                            content += parts[i];
+                        }
+                        bool ok = g_fm->createTextFile(parts[1], username, content, parentId);
+                        response = ok ? "OK" : "ERR|create failed";
                     }
-                    bool ok = g_fm->createTextFile(parts[1], parts[2], content, parentId);
-                    response = ok ? "OK" : "ERR|create failed";
                 }
             }
             else if (cmd == "FM_CREATE_FOLDER") {
                 if (parts.size() < 4) { response = "ERR|missing args"; }
                 else {
                     int parentId = stoi(parts[3]);
-                    bool ok = g_fm->createFolder(parts[1], parts[2], parentId);
-                    response = ok ? "OK" : "ERR|create failed";
+                    string username = parts[2];
+                    if (!g_fm->checkDirectPermission(parentId, username, "write")) {
+                        response = "ERR|permission denied";
+                    } else {
+                        bool ok = g_fm->createFolder(parts[1], username, parentId);
+                        response = ok ? "OK" : "ERR|create failed";
+                    }
                 }
             }
             else if (cmd == "FM_CREATE_BINARY_FILE") {
                 if (parts.size() < 5) { response = "ERR|missing args"; }
                 else {
                     int parentId = stoi(parts[4]);
-                    bool ok = g_fm->createBinaryFile(parts[1], parts[2], parts[3], parentId);
-                    response = ok ? "OK" : "ERR|create failed";
+                    string username = parts[2];
+                    if (!g_fm->checkDirectPermission(parentId, username, "write")) {
+                        response = "ERR|permission denied";
+                    } else {
+                        bool ok = g_fm->createBinaryFile(parts[1], username, parts[3], parentId);
+                        response = ok ? "OK" : "ERR|create failed";
+                    }
                 }
             }
             else if (cmd == "FM_RENAME") {
@@ -307,6 +348,14 @@ void handleClient(SOCKET clientSocket) {
                 else {
                     int id = stoi(parts[1]);
                     bool ok = g_fm->checkPermission(id, parts[2], parts[3]);
+                    response = string("OK|") + (ok ? "1" : "0");
+                }
+            }
+            else if (cmd == "FM_CHECK_DIRECT_PERMISSION") {
+                if (parts.size() < 4) { response = "ERR|missing args"; }
+                else {
+                    int id = stoi(parts[1]);
+                    bool ok = g_fm->checkDirectPermission(id, parts[2], parts[3]);
                     response = string("OK|") + (ok ? "1" : "0");
                 }
             }
@@ -374,14 +423,15 @@ void handleClient(SOCKET clientSocket) {
                 if (parts.size() < 2) { response = "ERR|missing args"; }
                 else {
                     int parentId = stoi(parts[1]);
-                    auto children = g_fm->getChildren(parentId);
+                    string username = (parts.size() >= 3) ? parts[2] : "";
+                    auto children = g_fm->getChildren(parentId, username);
                     string json = serializeChildrenToJson(children, parentId);
                     response = "OK|" + json;
                 }
             }
             else if (cmd == "FM_BUILD_TREE") {
                 string username = (parts.size() >= 2) ? parts[1] : "";
-                int rootId = g_fm->getRootId();
+                int rootId = (parts.size() >= 3) ? stoi(parts[2]) : g_fm->getRootId();
                 auto tree = g_fm->buildTree(rootId, nullptr, username);
                 if (!tree) {
                     response = "ERR|failed to build tree";
@@ -427,6 +477,14 @@ int main() {
 
     g_auth->initializeDatabase();
     g_fm->initializeDatabase();
+
+    // repara inregistrarile OWNER vechi care au can_read=0 / can_write=0 din cauza unui bug al constructorului
+    g_db.execute("UPDATE permissions SET can_read=1, can_write=1 WHERE type='OWNER';");
+
+    // root (id=1) e vizibil si writable de oricine (pentru crearea folderului personal)
+    g_db.execute("INSERT OR IGNORE INTO permissions(entity_id, type, can_read, can_write) VALUES(1, 'OTHERS', 1, 1);");
+    g_db.execute("UPDATE permissions SET can_read=1, can_write=1 WHERE entity_id=1 AND type='OTHERS';"
+    );
 
     SOCKET serverSocket = socket(AF_INET, SOCK_STREAM, 0);
 

@@ -80,6 +80,13 @@ bool RemoteFileManager::checkPermission(int entityId, const std::string& usernam
     return false;
 }
 
+bool RemoteFileManager::checkDirectPermission(int entityId, const std::string& username, const std::string& operation) {
+    std::string cmd = "FM_CHECK_DIRECT_PERMISSION|" + std::to_string(entityId) + "|" + username + "|" + operation;
+    auto parts = split(sendCmd(cmd), '|');
+    if (parts.size() >= 2 && parts[0] == "OK") return parts[1] == "1";
+    return false;
+}
+
 bool RemoteFileManager::updateOthersPermissions(int entityId, bool canRead, bool canWrite) {
     std::string cmd = "FM_UPDATE_OTHERS_PERM|" + std::to_string(entityId) +
                       "|" + (canRead ? "1" : "0") + "|" + (canWrite ? "1" : "0");
@@ -130,8 +137,9 @@ int RemoteFileManager::getParentId(int entityId) const {
     return 0;
 }
 
-std::vector<std::shared_ptr<FileSystemEntity>> RemoteFileManager::getChildren(int parentId) {
+std::vector<std::shared_ptr<FileSystemEntity>> RemoteFileManager::getChildren(int parentId, const std::string& username) {
     std::string cmd = "FM_GET_CHILDREN|" + std::to_string(parentId);
+    if (!username.empty()) cmd += "|" + username;
     std::string resp = sendCmd(cmd);
     std::cout << "getChildren resp: [" << resp << "]\n";
 
@@ -153,6 +161,7 @@ std::vector<std::shared_ptr<FileSystemEntity>> RemoteFileManager::getChildren(in
         std::string owner= obj["owner"].toString().toStdString();
         std::time_t created  = (std::time_t)obj["createdAt"].toDouble();
         std::time_t modified = (std::time_t)obj["modifiedAt"].toDouble();
+        std::size_t size = static_cast<std::size_t>(obj["size"].toDouble());
 
         std::shared_ptr<FileSystemEntity> entity;
 
@@ -161,6 +170,7 @@ std::vector<std::shared_ptr<FileSystemEntity>> RemoteFileManager::getChildren(in
             folder->setId(id);
             folder->setCreatedAt(created);
             folder->setModifiedAt(modified);
+            folder->setCachedSize(size);
             entity = folder;
         } else if (type == "TextFile") {
             std::string content = obj["content"].toString().toStdString();
@@ -175,6 +185,7 @@ std::vector<std::shared_ptr<FileSystemEntity>> RemoteFileManager::getChildren(in
             bf->setId(id);
             bf->setCreatedAt(created);
             bf->setModifiedAt(modified);
+            bf->setSize(size);
             entity = bf;
         }
 
@@ -193,7 +204,7 @@ int RemoteFileManager::getEntityId(const std::string& name, int parentId) {
 
 std::shared_ptr<Folder> RemoteFileManager::buildTree(int folderId, Folder* /*parent*/,
                                                      const std::string& username) {
-    std::string cmd = "FM_BUILD_TREE|" + username;
+    std::string cmd = "FM_BUILD_TREE|" + username + "|" + std::to_string(folderId);
     std::string resp = sendCmd(cmd);
 
     size_t sep = resp.find('|');
@@ -216,6 +227,7 @@ std::shared_ptr<Folder> RemoteFileManager::buildTree(int folderId, Folder* /*par
         std::string owner= obj["owner"].toString().toStdString();
         std::time_t created  = (std::time_t)obj["createdAt"].toDouble();
         std::time_t modified = (std::time_t)obj["modifiedAt"].toDouble();
+        std::size_t size = static_cast<std::size_t>(obj["size"].toDouble());
 
         parentMap[id] = pid;
 
@@ -223,6 +235,7 @@ std::shared_ptr<Folder> RemoteFileManager::buildTree(int folderId, Folder* /*par
         if (type == "Folder") {
             auto folder = std::make_shared<Folder>(name, owner, nullptr);
             folder->setId(id); folder->setCreatedAt(created); folder->setModifiedAt(modified);
+            folder->setCachedSize(size);
             entity = folder;
         } else if (type == "TextFile") {
             std::string content = obj["content"].toString().toStdString();
@@ -233,6 +246,7 @@ std::shared_ptr<Folder> RemoteFileManager::buildTree(int folderId, Folder* /*par
             std::string ext = obj["extension"].toString().toStdString();
             auto bf = std::make_shared<BinaryFile>(name, owner, ext);
             bf->setId(id); bf->setCreatedAt(created); bf->setModifiedAt(modified);
+            bf->setSize(size);
             entity = bf;
         }
         if (entity) entityMap[id] = entity;

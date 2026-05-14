@@ -44,7 +44,6 @@ private slots:
     void onSortByName();
     void onSortBySize();
     void onSortByDate();
-    void onShowLogs();
     void onExportLogs();
     void onSearchTriggered();
     void onItemSelected(const QModelIndex& index);
@@ -59,6 +58,7 @@ private:
     void logEvent(const std::string& action, const std::string& path = "");
     bool checkWritePermission(FileSystemEntity* entity);
     bool checkReadPermission(FileSystemEntity* entity);
+    bool isUserRootFolder(FileSystemEntity* entity);
     void showShareDialog(FileSystemEntity* entity);
     void showPropertiesDialog(FileSystemEntity* entity);
     void showEditDialog(FileSystemEntity* entity);

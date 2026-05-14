@@ -58,6 +58,9 @@ bool FileManager::initializeDatabase() {
 
 bool FileManager::createTextFile(const std::string& name, const std::string& ownerUser,
                                  const std::string& content, int parentId) {
+    if (entityExists(name, parentId))
+        return false;
+
     const char* sql = "INSERT INTO entities(name, type, owner_user, parent_id, created_at, modified_at) "
                       "VALUES(?, 'TEXT', ?, ?, strftime('%s','now'), strftime('%s','now'));";
     sqlite3_stmt* stmt = nullptr;
@@ -93,6 +96,9 @@ bool FileManager::createTextFile(const std::string& name, const std::string& own
 }
 
 bool FileManager::createFolder(const std::string& name, const std::string& ownerUser, int parentId) {
+    if (entityExists(name, parentId))
+        return false;
+
     const char* sql = "INSERT INTO entities(name, type, owner_user, parent_id, created_at, modified_at) "
                       "VALUES(?, 'FOLDER', ?, ?, strftime('%s','now'), strftime('%s','now'));";
     sqlite3_stmt* stmt = nullptr;
@@ -150,7 +156,7 @@ std::shared_ptr<TextFile> FileManager::getTextFile(int id) {
     return file;
 }
 
-std::vector<std::shared_ptr<FileSystemEntity>> FileManager::getChildren(int parentId) {
+std::vector<std::shared_ptr<FileSystemEntity>> FileManager::getChildren(int parentId, const std::string& username) {
     std::vector<std::shared_ptr<FileSystemEntity>> children;
 
     const char* sql = "SELECT id, name, type, owner_user, created_at, modified_at FROM entities WHERE parent_id = ?;";
@@ -174,10 +180,12 @@ std::vector<std::shared_ptr<FileSystemEntity>> FileManager::getChildren(int pare
             if (tf) children.push_back(tf);
         }
         else if (typeStr == "BINARY") {
-            auto bf = std::make_shared<BinaryFile>(name ? name : "", owner ? owner : "", ".bin");
+            auto [extension, size] = getFileContentInfo(id);
+            auto bf = std::make_shared<BinaryFile>(name ? name : "", owner ? owner : "", extension);
             bf->setId(id);
             bf->setCreatedAt(created);
             bf->setModifiedAt(modified);
+            bf->setSize(size);
             children.push_back(bf);
         }
         else if (typeStr == "FOLDER") {
@@ -185,12 +193,29 @@ std::vector<std::shared_ptr<FileSystemEntity>> FileManager::getChildren(int pare
             folder->setId(id);
             folder->setCreatedAt(created);
             folder->setModifiedAt(modified);
+            folder->setCachedSize(getEntitySize(id));
             children.push_back(folder);
         }
     }
 
     sqlite3_finalize(stmt);
+
+    if (!username.empty()) {
+        children.erase(
+            std::remove_if(children.begin(), children.end(),
+                [&](const std::shared_ptr<FileSystemEntity>& e) {
+                    return !checkDirectPermission(e->getId(), username, "read");
+                }),
+            children.end()
+        );
+    }
+
     return children;
+}
+
+bool FileManager::checkDirectPermission(int entityId, const std::string& username, const std::string& operation) {
+    PermissionManager pm = loadPermissions(entityId);
+    return pm.check(username, operation);
 }
 
 bool FileManager::updateTextFile(int id, const std::string& content, const std::string& username) {
@@ -244,14 +269,26 @@ bool FileManager::deleteEntity(int id, const std::string& username) {
         return false;
     }
 
-    const char* sql = "DELETE FROM entities WHERE id = ?;";
-    sqlite3_stmt* stmt = nullptr;
+    return deleteEntityTree(id, username);
+}
 
-    sqlite3_prepare_v2(db.getConnection(), sql, -1, &stmt, nullptr);
-    sqlite3_bind_int(stmt, 1, id);
+bool FileManager::deleteEntityTree(int id, const std::string& username) {
+    if (id <= 1) return false;
 
-    bool success = (sqlite3_step(stmt) == SQLITE_DONE);
-    sqlite3_finalize(stmt);
+    const std::string subtree =
+        "WITH RECURSIVE subtree(id) AS ("
+        "SELECT id FROM entities WHERE id = " + std::to_string(id) + " "
+        "UNION ALL "
+        "SELECT e.id FROM entities e JOIN subtree s ON e.parent_id = s.id"
+        ") ";
+
+    db.execute("BEGIN TRANSACTION;");
+    bool success =
+        db.execute(subtree + "DELETE FROM file_contents WHERE entity_id IN (SELECT id FROM subtree);") &&
+        db.execute(subtree + "DELETE FROM permissions WHERE entity_id IN (SELECT id FROM subtree);") &&
+        db.execute(subtree + "DELETE FROM entities WHERE id IN (SELECT id FROM subtree);");
+
+    db.execute(success ? "COMMIT;" : "ROLLBACK;");
 
     if (success)
         EventLog(EventType::FILE_DELETE, username, "Entitate stearsa id=" + std::to_string(id), logger);
@@ -273,9 +310,61 @@ int FileManager::getParentId(int entityId) const {
     return parentId;
 }
 
+std::size_t FileManager::getEntitySize(int entityId) const {
+    const char* sql = R"(
+        WITH RECURSIVE subtree(id) AS (
+            SELECT id FROM entities WHERE id = ?
+            UNION ALL
+            SELECT e.id FROM entities e JOIN subtree s ON e.parent_id = s.id
+        )
+        SELECT COALESCE(SUM(fc.size), 0)
+        FROM subtree s
+        JOIN file_contents fc ON fc.entity_id = s.id;
+    )";
+
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(db.getConnection(), sql, -1, &stmt, nullptr) != SQLITE_OK)
+        return 0;
+
+    sqlite3_bind_int(stmt, 1, entityId);
+
+    std::size_t size = 0;
+    if (sqlite3_step(stmt) == SQLITE_ROW) {
+        sqlite3_int64 value = sqlite3_column_int64(stmt, 0);
+        size = value > 0 ? static_cast<std::size_t>(value) : 0;
+    }
+
+    sqlite3_finalize(stmt);
+    return size;
+}
+
+std::pair<std::string, std::size_t> FileManager::getFileContentInfo(int entityId) const {
+    const char* sql = "SELECT extension, size FROM file_contents WHERE entity_id = ?;";
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(db.getConnection(), sql, -1, &stmt, nullptr) != SQLITE_OK)
+        return {".bin", 0};
+
+    sqlite3_bind_int(stmt, 1, entityId);
+
+    std::string extension = ".bin";
+    std::size_t size = 0;
+    if (sqlite3_step(stmt) == SQLITE_ROW) {
+        const char* ext = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
+        sqlite3_int64 value = sqlite3_column_int64(stmt, 1);
+        if (ext && ext[0] != '\0') extension = ext;
+        if (value > 0) size = static_cast<std::size_t>(value);
+    }
+
+    sqlite3_finalize(stmt);
+    return {extension, size};
+}
+
 bool FileManager::checkPermission(int entityId, const std::string& username, const std::string& operation) {
     int currentId = entityId;
     while (currentId > 0) {
+        if (currentId == 1 && entityId != 1)
+            break;
+
         PermissionManager pm = loadPermissions(currentId);
         if (pm.check(username, operation))
             return true;
@@ -293,17 +382,23 @@ bool FileManager::shareEntity(int entityId, const std::string& username, bool ca
     pm.addPermission(up);
     savePermissions(entityId, pm);
 
-    // Propaga read pe toti parintii pana la root
-    int currentId = getParentId(entityId);
-    while (currentId > 0) {
-        PermissionManager parentPm = loadPermissions(currentId);
-        auto parentUp = parentPm.getUserPermission();
-        if (!parentUp) parentUp = std::make_shared<UserPermission>();
-        if (!parentUp->hasUser(username))
-            parentUp->addUser(username, true, false);
-        parentPm.addPermission(parentUp);
-        savePermissions(currentId, parentPm);
-        currentId = getParentId(currentId);
+    // Propaga permisiunile pe toti copiii recursiv
+    propagateUserPermToChildren(entityId, username, canRead, canWrite);
+
+    // Propaga read-only pe toate folderele parinte pentru navigare
+    if (canRead) {
+        int currentId = getParentId(entityId);
+        while (currentId > 0) {
+            PermissionManager parentPm = loadPermissions(currentId);
+            auto parentUp = parentPm.getUserPermission();
+            if (!parentUp) parentUp = std::make_shared<UserPermission>();
+            if (!parentUp->hasUser(username)) {
+                parentUp->addUser(username, true, false);
+                parentPm.addPermission(parentUp);
+                savePermissions(currentId, parentPm);
+            }
+            currentId = getParentId(currentId);
+        }
     }
 
     EventLog(EventType::FILE_SHARE, username, "Entitate partajata cu: " + username, logger);
@@ -325,6 +420,10 @@ bool FileManager::revokeShare(int entityId, const std::string& username) {
 bool FileManager::updateOthersPermissions(int entityId, bool canRead, bool canWrite) {
     PermissionManager pm = loadPermissions(entityId);
     pm.addPermission(std::make_shared<OthersPermission>(canRead, canWrite));
+    bool ok = savePermissions(entityId, pm);
+
+    // Propaga permisiunile others pe toti copiii recursiv
+    propagateOthersPermToChildren(entityId, canRead, canWrite);
 
     if (canRead) {
         int currentId = getParentId(entityId);
@@ -339,7 +438,46 @@ bool FileManager::updateOthersPermissions(int entityId, bool canRead, bool canWr
         }
     }
 
-    return savePermissions(entityId, pm);
+    return ok;
+}
+
+std::vector<std::pair<int,bool>> FileManager::getChildIds(int parentId) {
+    std::vector<std::pair<int,bool>> result;
+    const char* sql = "SELECT id, type FROM entities WHERE parent_id = ?;";
+    sqlite3_stmt* stmt = nullptr;
+    sqlite3_prepare_v2(db.getConnection(), sql, -1, &stmt, nullptr);
+    sqlite3_bind_int(stmt, 1, parentId);
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        int id = sqlite3_column_int(stmt, 0);
+        const char* t = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
+        bool isFolder = t && std::string(t) == "FOLDER";
+        result.push_back({id, isFolder});
+    }
+    sqlite3_finalize(stmt);
+    return result;
+}
+
+void FileManager::propagateUserPermToChildren(int folderId, const std::string& username, bool canRead, bool canWrite) {
+    for (auto& [childId, isFolder] : getChildIds(folderId)) {
+        PermissionManager pm = loadPermissions(childId);
+        auto up = pm.getUserPermission();
+        if (!up) up = std::make_shared<UserPermission>();
+        up->addUser(username, canRead, canWrite);
+        pm.addPermission(up);
+        savePermissions(childId, pm);
+        if (isFolder)
+            propagateUserPermToChildren(childId, username, canRead, canWrite);
+    }
+}
+
+void FileManager::propagateOthersPermToChildren(int folderId, bool canRead, bool canWrite) {
+    for (auto& [childId, isFolder] : getChildIds(folderId)) {
+        PermissionManager pm = loadPermissions(childId);
+        pm.addPermission(std::make_shared<OthersPermission>(canRead, canWrite));
+        savePermissions(childId, pm);
+        if (isFolder)
+            propagateOthersPermToChildren(childId, canRead, canWrite);
+    }
 }
 
 bool FileManager::savePermissions(int entityId, const PermissionManager& pm) {
@@ -352,8 +490,8 @@ bool FileManager::savePermissions(int entityId, const PermissionManager& pm) {
         sqlite3_prepare_v2(db.getConnection(), sql, -1, &stmt, nullptr);
         sqlite3_bind_int(stmt, 1, entityId);
         sqlite3_bind_text(stmt, 2, owner->getOwnerUsername().c_str(), -1, SQLITE_TRANSIENT);
-        sqlite3_bind_int(stmt, 3, owner->canRead() ? 1 : 0);
-        sqlite3_bind_int(stmt, 4, owner->canWrite() ? 1 : 0);
+        sqlite3_bind_int(stmt, 3, 1);
+        sqlite3_bind_int(stmt, 4, 1);
         sqlite3_step(stmt);
         sqlite3_finalize(stmt);
     }
@@ -400,7 +538,7 @@ PermissionManager FileManager::loadPermissions(int entityId) {
 
         if (typeStr == "OWNER") {
             const char* ownerUser = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
-            pm.addPermission(std::make_shared<OwnerPermission>(ownerUser ? ownerUser : "", canRead, canWrite));
+            pm.addPermission(std::make_shared<OwnerPermission>(ownerUser ? ownerUser : "", true, true));
         }
         else if (typeStr == "USER") {
             const char* membersRaw = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
@@ -436,6 +574,20 @@ int FileManager::getEntityId(const std::string& name, int parentId) {
     return id;
 }
 
+bool FileManager::entityExists(const std::string& name, int parentId) const {
+    const char* sql = "SELECT 1 FROM entities WHERE name = ? AND parent_id = ? LIMIT 1;";
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(db.getConnection(), sql, -1, &stmt, nullptr) != SQLITE_OK)
+        return false;
+
+    sqlite3_bind_text(stmt, 1, name.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_int(stmt, 2, parentId);
+
+    bool exists = (sqlite3_step(stmt) == SQLITE_ROW);
+    sqlite3_finalize(stmt);
+    return exists;
+}
+
 std::shared_ptr<Folder> FileManager::buildTree(int folderId, Folder* parent, const std::string& username) {
     const char* sql = "SELECT name, owner_user, created_at, modified_at FROM entities WHERE id = ?;";
     sqlite3_stmt* stmt = nullptr;
@@ -469,7 +621,7 @@ std::shared_ptr<Folder> FileManager::buildTree(int folderId, Folder* parent, con
         const char* cown  = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3));
         std::string typeStr = ctype ? ctype : "";
 
-        if (!username.empty() && !checkPermission(id, username, "read"))
+        if (!username.empty() && !checkDirectPermission(id, username, "read"))
             continue;
 
         if (typeStr == "TEXT") {
@@ -479,8 +631,10 @@ std::shared_ptr<Folder> FileManager::buildTree(int folderId, Folder* parent, con
             }
         }
         else if (typeStr == "BINARY") {
-            auto bf = std::make_shared<BinaryFile>(cname ? cname : "", cown ? cown : "", ".bin");
+            auto [extension, size] = getFileContentInfo(id);
+            auto bf = std::make_shared<BinaryFile>(cname ? cname : "", cown ? cown : "", extension);
             bf->setId(id);
+            bf->setSize(size);
             try { folder->addChild(bf); } catch (...) {}
         }
         else if (typeStr == "FOLDER") {
@@ -504,6 +658,9 @@ std::shared_ptr<Folder> FileManager::buildTree(int folderId, Folder* parent, con
 
 bool FileManager::createBinaryFile(const std::string& name, const std::string& ownerUser,
                                    const std::string& extension, int parentId) {
+    if (entityExists(name, parentId))
+        return false;
+
     const char* sql = "INSERT INTO entities(name, type, owner_user, parent_id, created_at, modified_at) "
                       "VALUES(?, 'BINARY', ?, ?, strftime('%s','now'), strftime('%s','now'));";
     sqlite3_stmt* stmt = nullptr;

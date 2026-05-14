@@ -4,7 +4,7 @@
 #include <vector>
 
 OwnerPermission::OwnerPermission(const std::string &ownerUsername, bool canRead, bool canWrite)
-:Permission(m_canRead,m_canWrite),m_ownerUsername(ownerUsername)
+:Permission(canRead,canWrite),m_ownerUsername(ownerUsername)
 {
 }
 
@@ -42,12 +42,11 @@ bool OwnerPermission::check(const std::string &username, const std::string &oper
 {
    if(username!=this->m_ownerUsername)
         return false;
-   if(operation=="read") 
+   if(operation=="read")
         return this->m_canRead;
-   if(operation=="write") 
-        return this->m_canWrite;   
-   
-    throw PermissionException("Operatie necunoscuta: "+operation);    
+   if(operation=="write")
+        return this->m_canWrite;
+   return false;
 }
 
 std::string OwnerPermission::serialize() const

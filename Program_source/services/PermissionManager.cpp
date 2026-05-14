@@ -41,7 +41,7 @@ bool PermissionManager::check(const std::string& username, const std::string& op
             if (user && user->check(username, operation)) return true;
         }
         if (perm->getType() == "OTHERS") {
-            return perm->check(username, operation);
+            if (perm->check(username, operation)) return true;
         }
     }
     return false;

@@ -25,6 +25,7 @@ public:
     bool updateTextFile(int id, const std::string& content, const std::string& username) override;
 
     bool checkPermission(int entityId, const std::string& username, const std::string& operation) override;
+    bool checkDirectPermission(int entityId, const std::string& username, const std::string& operation) override;
     bool updateOthersPermissions(int entityId, bool canRead, bool canWrite) override;
     bool shareEntity(int entityId, const std::string& username, bool canRead, bool canWrite) override;
     bool revokeShare(int entityId, const std::string& username) override;
@@ -32,7 +33,7 @@ public:
 
     int getRootId() override;
     int getEntityId(const std::string& name, int parentId) override;
-    std::vector<std::shared_ptr<FileSystemEntity>> getChildren(int parentId) override;
+    std::vector<std::shared_ptr<FileSystemEntity>> getChildren(int parentId, const std::string& username = "") override;
     std::shared_ptr<Folder> buildTree(int folderId, Folder* parent = nullptr,
                                       const std::string& username = "") override;
     
