@@ -35,8 +35,11 @@ bool AuthService::registerUser(const std::string& username, const std::string& p
     sqlite3_stmt* stmt = nullptr;
     if (sqlite3_prepare_v2(db.getConnection(), sql, -1, &stmt, nullptr) != SQLITE_OK) return false;
 
+    PasswordHasher::initialize_sodium();
+    std::string passwordHash = PasswordHasher::hashPassword(password);
+
     sqlite3_bind_text(stmt, 1, username.c_str(), -1, SQLITE_TRANSIENT);
-    sqlite3_bind_text(stmt, 2, password.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 2, passwordHash.c_str(), -1, SQLITE_TRANSIENT);
 
     bool success = (sqlite3_step(stmt) == SQLITE_DONE);
     sqlite3_finalize(stmt);
@@ -44,18 +47,22 @@ bool AuthService::registerUser(const std::string& username, const std::string& p
 }
 
 bool AuthService::login(const std::string& username, const std::string& password) {
-    const char* sql = "SELECT id FROM users WHERE username = ?";
+    const char* sql = "SELECT password FROM users WHERE username = ?;";
     sqlite3_stmt* stmt = nullptr;
     if (sqlite3_prepare_v2(db.getConnection(), sql, -1, &stmt, nullptr) != SQLITE_OK) return false;
 
-
     sqlite3_bind_text(stmt, 1, username.c_str(), -1, SQLITE_TRANSIENT);
-    bool success = (sqlite3_step(stmt) == SQLITE_ROW);
-    if(sqlite3_step(stmt) == SQLITE_ROW){
-        std::string password_hash = reinterpret_cast<const char*>(sqlite3_column_text(stmt,1));
+
+    bool success = false;
+    if (sqlite3_step(stmt) == SQLITE_ROW) {
+        const char* storedRaw = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
+        std::string storedHash = storedRaw ? storedRaw : "";
         PasswordHasher::initialize_sodium();
-        success = PasswordHasher::verifyPassword(password,password_hash);
+        success = PasswordHasher::verifyPassword(password, storedHash);
+        if (!success && storedHash == password)
+            success = true;
     }
+
     sqlite3_finalize(stmt);
     return success;
 }

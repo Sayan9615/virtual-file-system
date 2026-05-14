@@ -21,6 +21,7 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QShortcut>
+#include <QStringList>
 #include <fstream>
 #include <algorithm>
 #include <functional>
@@ -95,7 +96,6 @@ void MainWindow::setupMenuBar() {
     QAction* sortDateAction = viewMenu->addAction("Sortare dupa data");
 
     QMenu* logMenu = menuBar()->addMenu("Log");
-    QAction* showLogsAction   = logMenu->addAction("Afiseaza log-uri");
     QAction* exportLogsAction = logMenu->addAction("Export log-uri");
 
     if (m_auth.isAdmin(m_currentUser)) {
@@ -119,7 +119,6 @@ void MainWindow::setupMenuBar() {
     connect(sortNameAction,   &QAction::triggered, this, &MainWindow::onSortByName);
     connect(sortSizeAction,   &QAction::triggered, this, &MainWindow::onSortBySize);
     connect(sortDateAction,   &QAction::triggered, this, &MainWindow::onSortByDate);
-    connect(showLogsAction,   &QAction::triggered, this, &MainWindow::onShowLogs);
     connect(exportLogsAction, &QAction::triggered, this, &MainWindow::onExportLogs);
     connect(aboutAction, &QAction::triggered, this, [this]() {
         QMessageBox::about(this, "Despre ATMosFS",
@@ -256,6 +255,7 @@ void MainWindow::setupUI() {
                 if (!entity) return;
 
                 if (entity->isFolder()) {
+                    if (!checkReadPermission(entity)) return;
                     m_model->navigateTo(entity->getId(), entity->getName());
                     m_backButton->setEnabled(m_model->canGoBack());
                     m_addressBar->setText(QString::fromStdString(m_model->currentPath()));
@@ -297,6 +297,14 @@ bool MainWindow::checkReadPermission(FileSystemEntity* entity) {
         return false;
     }
     return true;
+}
+
+bool MainWindow::isUserRootFolder(FileSystemEntity* entity) {
+    if (!entity || !entity->isFolder() || entity->getId() <= 1)
+        return false;
+
+    return m_fm.getParentId(entity->getId()) == m_fm.getRootId() &&
+           entity->getName() == entity->getOwnerUser();
 }
 
 void MainWindow::onAdminPanel() {
@@ -382,6 +390,7 @@ void MainWindow::onAdminPanel() {
         if (reply != QMessageBox::Yes) return;
         if (m_auth.deleteUser(uname.toStdString())) {
             delete selected[0];
+            m_model->refresh();
             infoLabel->setText(QString("Userul '%1' a fost sters.").arg(uname));
             deleteUserBtn->setEnabled(false);
             logEvent("ADMIN_DELETE_USER", uname.toStdString());
@@ -429,6 +438,15 @@ void MainWindow::onSearchTriggered() {
         QString path = QString::fromStdString(r.absolutePath);
         auto* item = new QListWidgetItem(icon + " " + name + "  —  " + path);
         item->setData(Qt::UserRole, (int)r.entity->getId());
+
+        // Extract parent folder name from absolute path for navigation
+        int lastSlash = path.lastIndexOf('/');
+        QString parentPath = (lastSlash > 0) ? path.left(lastSlash) : "";
+        int parentSlash = parentPath.lastIndexOf('/');
+        QString folderName = (parentSlash >= 0 && parentSlash < parentPath.length() - 1)
+            ? parentPath.mid(parentSlash + 1) : "";
+        item->setData(Qt::UserRole + 1, folderName);
+
         m_searchResults->addItem(item);
     }
 
@@ -440,9 +458,10 @@ void MainWindow::onSearchTriggered() {
 void MainWindow::onSearchResultClicked(QListWidgetItem* item) {
     if (!item) return;
     int entityId = item->data(Qt::UserRole).toInt();
+    QString folderName = item->data(Qt::UserRole + 1).toString();
     int parentId = m_fm.getParentId(entityId);
     if (parentId > 0) {
-        m_model->navigateTo(parentId, std::to_string(parentId));
+        m_model->navigateTo(parentId, folderName.toStdString());
         m_backButton->setEnabled(m_model->canGoBack());
         m_addressBar->setText(QString::fromStdString(m_model->currentPath()));
     }
@@ -506,10 +525,15 @@ void MainWindow::onNewFile() {
         if (!tpl.isEmpty()) initialContent = tpl.toBase64().toStdString();
     }
 
+    if (!m_fm.checkDirectPermission(parentId, m_currentUser, "write")) {
+        QMessageBox::warning(this, "Acces nepermis", "Nu aveti drepturi de scriere in acest folder.");
+        return;
+    }
+
     try {
         bool saved = m_fm.createTextFile(name.toStdString(), m_currentUser, initialContent, parentId);
         if (!saved) {
-            QMessageBox::warning(this, "Eroare", "Eroare la salvare in baza de date.");
+            QMessageBox::warning(this, "Eroare", "Exista deja un fisier sau folder cu acest nume in locatia curenta.");
             return;
         }
         m_model->refresh();
@@ -529,10 +553,15 @@ void MainWindow::onNewFolder() {
     if (!ok || name.trimmed().isEmpty()) return;
     name = name.trimmed();
 
+    if (!m_fm.checkDirectPermission(parentId, m_currentUser, "write")) {
+        QMessageBox::warning(this, "Acces nepermis", "Nu aveti drepturi de scriere in acest folder.");
+        return;
+    }
+
     try {
         bool saved = m_fm.createFolder(name.toStdString(), m_currentUser, parentId);
         if (!saved) {
-            QMessageBox::warning(this, "Eroare", "Eroare la salvare in baza de date.");
+            QMessageBox::warning(this, "Eroare", "Exista deja un fisier sau folder cu acest nume in locatia curenta.");
             return;
         }
         m_model->refresh();
@@ -603,14 +632,17 @@ void MainWindow::showEditDialog(FileSystemEntity* entity) {
     connect(saveBtn, &QPushButton::clicked, &dialog, [&]() {
         QString newContent = editor->toPlainText();
         try {
-            if (m_fm.updateTextFile(entity->getId(), newContent.toStdString(), m_currentUser)) {
-                tf->write(newContent.toStdString());
+            const int entityId = entity->getId();
+            const std::string entityName = entity->getName();
+            std::string newContentStd = newContent.toStdString();
+            if (m_fm.updateTextFile(entityId, newContentStd, m_currentUser)) {
+                tf->write(newContentStd);
                 showPreview(entity);
                 m_model->refresh();
-                logEvent("EDIT_FILE", entity->getName());
+                logEvent("EDIT_FILE", entityName);
                 dialog.accept();
                 m_statusLabel->setText(QString("Salvat: %1")
-                    .arg(QString::fromStdString(entity->getName())));
+                    .arg(QString::fromStdString(entityName)));
             } else {
                 QMessageBox::warning(&dialog, "Eroare", "Eroare la salvare in baza de date.");
             }
@@ -636,6 +668,9 @@ void MainWindow::onOpenExternal(FileSystemEntity* entityOverride) {
     if (!tf) return;
 
     try {
+        const int entityId = entity->getId();
+        const std::string entityName = entity->getName();
+        const std::string entityOwner = entity->getOwnerUser();
         QString fileName = QString::fromStdString(entity->getName());
         bool binary = isBinaryOffice(fileName);
 
@@ -664,11 +699,11 @@ void MainWindow::onOpenExternal(FileSystemEntity* entityOverride) {
         realFile.close();
 
         QDesktopServices::openUrl(QUrl::fromLocalFile(tempPath));
-        logEvent("OPEN_EXTERNAL", entity->getName());
+        logEvent("OPEN_EXTERNAL", entityName);
 
-        int idToCheck = entity->getId() <= 0 ? 1 : entity->getId();
+        int idToCheck = entityId <= 0 ? 1 : entityId;
         bool canWrite = m_auth.isAdmin(m_currentUser) ||
-                        entity->getOwnerUser() == m_currentUser ||
+                        entityOwner == m_currentUser ||
                         m_fm.checkPermission(idToCheck, m_currentUser, "write");
 
         if (canWrite) {
@@ -688,12 +723,12 @@ void MainWindow::onOpenExternal(FileSystemEntity* entityOverride) {
                     ? newData.toBase64().toStdString()
                     : std::string(newData.constData(), newData.size());
 
-                if (m_fm.updateTextFile(entity->getId(), toStore, m_currentUser)) {
+                if (m_fm.updateTextFile(entityId, toStore, m_currentUser)) {
                     tf->write(toStore);
-                    m_model->refresh();
                     showPreview(entity);
+                    m_model->refresh();
                     m_statusLabel->setText("Sincronizare reusita: " + fileName);
-                    logEvent("UPDATE_FROM_EXTERNAL", entity->getName());
+                    logEvent("UPDATE_FROM_EXTERNAL", entityName);
                 } else {
                     QMessageBox::warning(this, "Eroare DB",
                                          "Modificarile nu au putut fi salvate.");
@@ -710,6 +745,11 @@ void MainWindow::onRename() {
     if (!index.isValid()) return;
     auto* entity = m_model->entityFromIndex(index);
     if (!entity || !checkWritePermission(entity)) return;
+    if (isUserRootFolder(entity)) {
+        QMessageBox::warning(this, "Actiune blocata",
+                             "Folderul personal din root nu poate fi redenumit manual.");
+        return;
+    }
 
     QString currentName = QString::fromStdString(entity->getName());
     bool ok;
@@ -736,6 +776,11 @@ void MainWindow::onDelete() {
     if (!index.isValid()) return;
     auto* entity = m_model->entityFromIndex(index);
     if (!entity || !checkWritePermission(entity)) return;
+    if (isUserRootFolder(entity)) {
+        QMessageBox::warning(this, "Actiune blocata",
+                             "Folderul personal din root nu poate fi sters manual.");
+        return;
+    }
 
     auto reply = QMessageBox::question(this, "Confirmare stergere",
                                        QString("Esti sigur ca vrei sa stergi '%1'?")
@@ -782,10 +827,17 @@ void MainWindow::onContextMenu(const QPoint& pos) {
             renameAction = contextMenu.addAction("✏ Redenumire (F2)");
             deleteAction = contextMenu.addAction("🗑 Sterge");
 
+            bool protectedUserFolder = isUserRootFolder(entity);
             int idToCheck = entity->getId() <= 0 ? 1 : entity->getId();
             bool canWrite = m_auth.isAdmin(m_currentUser) ||
                             entity->getOwnerUser() == m_currentUser ||
                             m_fm.checkPermission(idToCheck, m_currentUser, "write");
+            if (protectedUserFolder) {
+                renameAction->setEnabled(false);
+                renameAction->setToolTip("Folderul personal din root nu poate fi redenumit manual.");
+                deleteAction->setEnabled(false);
+                deleteAction->setToolTip("Folderul personal din root nu poate fi sters manual.");
+            }
             if (!canWrite) {
                 deleteAction->setEnabled(false);
                 deleteAction->setToolTip("Nu aveti permisiunea de scriere!");
@@ -845,25 +897,29 @@ void MainWindow::showShareDialog(FileSystemEntity* entity) {
             .arg(QString::fromStdString(entity->getName())), &dialog));
 
     auto* listWidget = new QListWidget(&dialog);
-    listWidget->setSelectionMode(QAbstractItemView::NoSelection);
+    listWidget->setSelectionMode(QAbstractItemView::SingleSelection);
 
     auto allUsers = m_auth.getAllUsers();
     auto pm = m_fm.loadPermissions(entity->getId());
     auto up = pm.getUserPermission();
+    int firstSharedRow = -1;
 
     for (const auto& [id, uname] : allUsers) {
         if (uname == m_currentUser) continue;
         auto* item = new QListWidgetItem(
             QString("👤 ") + QString::fromStdString(uname), listWidget);
-        item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
-        bool isShared = up && up->hasUser(uname);
-        item->setCheckState(isShared ? Qt::Checked : Qt::Unchecked);
-        if (isShared) item->setForeground(QColor(0, 120, 215));
         item->setData(Qt::UserRole, QString::fromStdString(uname));
+        if (up && up->hasUser(uname)) {
+            item->setForeground(QColor(0, 120, 215));
+            if (firstSharedRow < 0)
+                firstSharedRow = listWidget->row(item);
+        }
     }
 
-    if (listWidget->count() == 0)
-        listWidget->addItem("Nu exista alti utilizatori inregistrati.");
+    if (listWidget->count() == 0) {
+        auto* item = new QListWidgetItem("Nu exista alti utilizatori inregistrati.", listWidget);
+        item->setFlags(item->flags() & ~Qt::ItemIsSelectable);
+    }
 
     layout->addWidget(listWidget);
 
@@ -871,7 +927,8 @@ void MainWindow::showShareDialog(FileSystemEntity* entity) {
     auto* permLayout = new QVBoxLayout(permGroup);
     auto* canReadCheck  = new QCheckBox("Poate Citi",     permGroup);
     auto* canWriteCheck = new QCheckBox("Poate Modifica", permGroup);
-    canReadCheck->setChecked(true);
+    canReadCheck->setEnabled(false);
+    canWriteCheck->setEnabled(false);
     permLayout->addWidget(canReadCheck);
     permLayout->addWidget(canWriteCheck);
     layout->addWidget(permGroup);
@@ -887,33 +944,83 @@ void MainWindow::showShareDialog(FileSystemEntity* entity) {
     btnLayout->addWidget(applyBtn);
     layout->addLayout(btnLayout);
 
+    applyBtn->setEnabled(false);
+
+    auto currentAccess = [&](const std::string& uname, bool& canRead, bool& canWrite) {
+        canRead = false;
+        canWrite = false;
+        PermissionManager freshPm = m_fm.loadPermissions(entity->getId());
+        auto freshUp = freshPm.getUserPermission();
+        if (!freshUp) return false;
+
+        for (const auto& user : freshUp->getUsers()) {
+            if (user.username == uname) {
+                canRead = user.can_read;
+                canWrite = user.can_write;
+                return true;
+            }
+        }
+        return false;
+    };
+
+    connect(listWidget, &QListWidget::currentItemChanged, &dialog,
+            [&](QListWidgetItem* current, QListWidgetItem*) {
+        bool hasUser = current && !current->data(Qt::UserRole).toString().isEmpty();
+        canReadCheck->setEnabled(hasUser);
+        canWriteCheck->setEnabled(hasUser);
+        applyBtn->setEnabled(hasUser);
+
+        if (!hasUser) {
+            canReadCheck->setChecked(false);
+            canWriteCheck->setChecked(false);
+            return;
+        }
+
+        std::string uname = current->data(Qt::UserRole).toString().toStdString();
+        bool canRead = false;
+        bool canWrite = false;
+        currentAccess(uname, canRead, canWrite);
+        canReadCheck->setChecked(canRead);
+        canWriteCheck->setChecked(canWrite);
+    });
+
+    connect(canWriteCheck, &QCheckBox::toggled, &dialog, [&](bool checked) {
+        if (checked && !canReadCheck->isChecked())
+            canReadCheck->setChecked(true);
+    });
+
     connect(cancelBtn, &QPushButton::clicked, &dialog, &QDialog::reject);
 
     connect(applyBtn, &QPushButton::clicked, &dialog, [&]() {
-        for (int i = 0; i < listWidget->count(); i++) {
-            auto* item = listWidget->item(i);
-            if (!item) continue;
-            std::string uname = item->data(Qt::UserRole).toString().toStdString();
-            if (uname.empty()) continue;
+        auto* item = listWidget->currentItem();
+        if (!item) return;
 
-            bool isChecked = (item->checkState() == Qt::Checked);
-            bool wasShared = up && up->hasUser(uname);
+        std::string uname = item->data(Qt::UserRole).toString().toStdString();
+        if (uname.empty()) return;
 
-            if (isChecked && !wasShared) {
-                try {
-                    m_fm.shareEntity(entity->getId(), uname,
-                                     canReadCheck->isChecked(),
-                                     canWriteCheck->isChecked());
-                } catch (...) {}
-            } else if (!isChecked && wasShared) {
-                try {
-                    m_fm.revokeShare(entity->getId(), uname);
-                } catch (...) {}
+        bool ok = false;
+        try {
+            if (canReadCheck->isChecked()) {
+                ok = m_fm.shareEntity(entity->getId(), uname, true, canWriteCheck->isChecked());
+            } else {
+                ok = m_fm.revokeShare(entity->getId(), uname);
             }
+        } catch (...) {
+            ok = false;
+        }
+
+        if (!ok) {
+            QMessageBox::warning(&dialog, "Eroare", "Setarile de partajare nu au putut fi salvate.");
+            return;
         }
         logEvent("SHARE", entity->getName());
         dialog.accept();
     });
+
+    if (firstSharedRow >= 0)
+        listWidget->setCurrentRow(firstSharedRow);
+    else if (listWidget->count() > 0)
+        listWidget->setCurrentRow(0);
 
     if (dialog.exec() == QDialog::Accepted) {
         m_model->refresh();
@@ -1014,12 +1121,42 @@ void MainWindow::showPreview(FileSystemEntity* entity) {
     if (!entity) return;
     m_previewPane->clear();
 
+    auto* tf = dynamic_cast<TextFile*>(entity);
+    QString name = QString::fromStdString(entity->getName());
+    const bool binaryOffice = tf && isBinaryOffice(name);
+    QByteArray rawOfficeData;
+    std::size_t displaySize = entity->getSize();
+
+    if (binaryOffice) {
+        rawOfficeData = QByteArray::fromBase64(QByteArray::fromStdString(tf->read()));
+        if (!rawOfficeData.isEmpty())
+            displaySize = static_cast<std::size_t>(rawOfficeData.size());
+    }
+
     QString info;
-    info += "<b>Nume:</b> " + QString::fromStdString(entity->getName()) + "<br>";
-    info += "<b>Proprietar:</b> " + QString::fromStdString(entity->getOwnerUser());
+    info += "<b>Nume:</b> " + name.toHtmlEscaped() + "<br>";
+    info += "<b>Proprietar:</b> " + QString::fromStdString(entity->getOwnerUser()).toHtmlEscaped();
     if (m_auth.isAdmin(entity->getOwnerUser())) info += " 🛡";
     info += "<br>";
-    info += "<b>Dimensiune:</b> " + QString::number(entity->getSize()) + " bytes<br>";
+    info += "<b>Dimensiune:</b> " + QString::number(displaySize) + " bytes<br>";
+
+    QStringList readers;
+    readers << QString::fromStdString(entity->getOwnerUser()).toHtmlEscaped() + " (proprietar)";
+
+    PermissionManager pm = m_fm.loadPermissions(entity->getId());
+    if (auto up = pm.getUserPermission()) {
+        for (const auto& user : up->getUsers()) {
+            if (!user.can_read) continue;
+            QString label = QString::fromStdString(user.username).toHtmlEscaped();
+            if (user.can_write) label += " (scriere)";
+            readers << label;
+        }
+    }
+    if (auto others = pm.getOthersPermission()) {
+        if (others->canRead())
+            readers << (others->canWrite() ? "Others (scriere)" : "Others");
+    }
+    info += "<b>Acces citire:</b> " + readers.join(", ") + "<br>";
 
     std::time_t t = entity->getCreatedAt();
     char buf[32];
@@ -1030,9 +1167,7 @@ void MainWindow::showPreview(FileSystemEntity* entity) {
         info += "<b>Tip:</b> Director<br>";
         info += "<i>Dublu click pentru a intra in folder.</i>";
     } else {
-        auto* tf = dynamic_cast<TextFile*>(entity);
         if (tf) {
-            QString name = QString::fromStdString(entity->getName());
             QString docType = "Fisier text";
             if (name.endsWith(".docx", Qt::CaseInsensitive))      docType = "Document Word (.docx)";
             else if (name.endsWith(".pptx", Qt::CaseInsensitive)) docType = "Prezentare PowerPoint (.pptx)";
@@ -1069,10 +1204,6 @@ void MainWindow::logEvent(const std::string& action, const std::string& path) {
         m_logger->log(msg);
         if (m_logConsole) m_logConsole->append(QString::fromStdString(msg));
     }
-}
-
-void MainWindow::onShowLogs() {
-    if (m_logConsole) m_logConsole->show();
 }
 
 void MainWindow::onExportLogs() {

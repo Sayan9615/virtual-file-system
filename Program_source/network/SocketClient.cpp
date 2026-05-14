@@ -1,8 +1,21 @@
 #include "SocketClient.h"
 #include <cstdio>
 #include <cstring>
+#include <cctype>
 
 #pragma comment(lib, "ws2_32.lib")
+
+namespace {
+constexpr unsigned int MAX_MESSAGE_SIZE = 50u * 1024u * 1024u;
+
+bool isHexHeader(const char* buffer) {
+    for (int i = 0; i < 8; ++i) {
+        if (!std::isxdigit(static_cast<unsigned char>(buffer[i])))
+            return false;
+    }
+    return true;
+}
+}
 
 SocketClient::SocketClient() {
     WSADATA wsaData;
@@ -48,8 +61,12 @@ bool SocketClient::sendMsg(const std::string& msg) {
     std::snprintf(lenBuf, sizeof(lenBuf), "%08X", (unsigned int)msg.size());
 
     // Send length header
-    int sent = send(m_socket, lenBuf, 8, 0);
-    if (sent != 8) return false;
+    int headerSent = 0;
+    while (headerSent < 8) {
+        int sent = send(m_socket, lenBuf + headerSent, 8 - headerSent, 0);
+        if (sent <= 0) return false;
+        headerSent += sent;
+    }
 
     // Send payload
     size_t total = 0;
@@ -72,9 +89,11 @@ std::string SocketClient::recvMsg() {
     }
 
     unsigned int msgLen = 0;
+    if (!isHexHeader(lenBuf)) return "";
     std::sscanf(lenBuf, "%08X", &msgLen);
 
     if (msgLen == 0) return "";
+    if (msgLen > MAX_MESSAGE_SIZE) return "";
 
     std::string result(msgLen, '\0');
     size_t received = 0;

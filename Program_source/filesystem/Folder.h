@@ -13,6 +13,7 @@ protected:
     std::vector<std::shared_ptr<FileSystemEntity>> m_children;
     BPlusTree<std::string, std::shared_ptr<FileSystemEntity>> m_index;
     Folder* m_parent;
+    std::size_t m_cachedSize = 0;
 
 public:
     Folder(const std::string& name, const std::string& ownerUser, Folder* parent = nullptr);
@@ -29,6 +30,7 @@ public:
     std::vector<std::shared_ptr<FileSystemEntity>> getChildren() const { return m_children; }
 
     void setParent(Folder* parent) { m_parent = parent; }
+    void setCachedSize(std::size_t size) { m_cachedSize = size; }
 
     void addChild(std::shared_ptr<FileSystemEntity> entity);
     void removeChild(const std::string& name);

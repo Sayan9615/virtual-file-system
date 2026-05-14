@@ -97,6 +97,9 @@ std::string Folder::getAbsolutePath() const
 
 std::size_t Folder::getSize() const
 {
+    if (m_children.empty())
+        return m_cachedSize;
+
     std::size_t total = 0;
     for (const auto& child : m_children)
         total += child->getSize();

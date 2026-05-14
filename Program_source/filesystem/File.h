@@ -23,6 +23,7 @@ public:
     std::size_t getSize() const { return m_size; }
 
     void setExtension(const std::string& extension);
+    void setSize(std::size_t size) { m_size = size; }
 
     bool isFolder() const override { return false; }
 

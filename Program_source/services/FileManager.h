@@ -9,6 +9,7 @@
 #include <memory>
 #include <vector>
 #include <string>
+#include <utility>
 
 class FileManager : public IFileManager {
 public:
@@ -28,7 +29,7 @@ public:
 
     // Citire
     std::shared_ptr<TextFile> getTextFile(int id);
-    std::vector<std::shared_ptr<FileSystemEntity>> getChildren(int parentId);
+    std::vector<std::shared_ptr<FileSystemEntity>> getChildren(int parentId, const std::string& username = "") override;
 
     // Update
     bool updateTextFile(int id, const std::string& content, const std::string& username);
@@ -36,6 +37,7 @@ public:
 
     // Stergere
     virtual bool deleteEntity(int id, const std::string& username) override;
+    bool deleteEntityTree(int id, const std::string& username);
 
     // Permisiuni
     virtual bool checkPermission(int entityId, const std::string& username, const std::string& operation) override;
@@ -54,9 +56,17 @@ public:
     virtual std::shared_ptr<Folder> buildTree(int folderId, Folder* parent = nullptr,
                                               const std::string& username = "") override;
 
+    bool checkDirectPermission(int entityId, const std::string& username, const std::string& operation) override;
+
 private:
     Database& db;
     iLogger& logger;
 
     bool savePermissions(int entityId, const PermissionManager& pm);
+    bool entityExists(const std::string& name, int parentId) const;
+    std::size_t getEntitySize(int entityId) const;
+    std::pair<std::string, std::size_t> getFileContentInfo(int entityId) const;
+    std::vector<std::pair<int,bool>> getChildIds(int parentId);
+    void propagateUserPermToChildren(int folderId, const std::string& username, bool canRead, bool canWrite);
+    void propagateOthersPermToChildren(int folderId, bool canRead, bool canWrite);
 };
