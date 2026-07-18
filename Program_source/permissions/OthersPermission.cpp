@@ -1,6 +1,5 @@
 #include "OthersPermission.h"
 #include "../exceptions/PermissionException.h"
-#include <sstream>
 
 OthersPermission::OthersPermission(bool canRead, bool canWrite)
 :Permission(canRead,canWrite)

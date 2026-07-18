@@ -15,8 +15,8 @@ FileLogger::~FileLogger() {
 }
 
 void FileLogger::log(const std::string& event) {
-    Logger::log(event);       // salvează în vector
-    logFile << event << "\n"; // scrie în fișier
+    Logger::log(event);
+    logFile << event << "\n";
     logFile.flush();
 }
 

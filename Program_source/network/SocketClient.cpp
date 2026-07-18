@@ -56,19 +56,22 @@ bool SocketClient::isConnected() const {
 }
 
 bool SocketClient::sendMsg(const std::string& msg) {
-    // Send 8-char hex length prefix + payload
     char lenBuf[9];
-    std::snprintf(lenBuf, sizeof(lenBuf), "%08X", (unsigned int)msg.size());
-
-    // Send length header
+    std::string msg_size = std::to_string(msg.size());
+    int cntr = 0;
+    for(;cntr < 8 - msg_size.size(); cntr++){
+        lenBuf[cntr] = '0';
+    }
+    for(int i = 0; cntr < 8;cntr++){
+        lenBuf[cntr] = msg_size[i++];
+    }
+    lenBuf[8] = '\0';
     int headerSent = 0;
     while (headerSent < 8) {
         int sent = send(m_socket, lenBuf + headerSent, 8 - headerSent, 0);
         if (sent <= 0) return false;
         headerSent += sent;
     }
-
-    // Send payload
     size_t total = 0;
     while (total < msg.size()) {
         int n = send(m_socket, msg.c_str() + total, (int)(msg.size() - total), 0);
@@ -79,7 +82,6 @@ bool SocketClient::sendMsg(const std::string& msg) {
 }
 
 std::string SocketClient::recvMsg() {
-    // Read 8-byte length header
     char lenBuf[9] = {0};
     int total = 0;
     while (total < 8) {
@@ -87,11 +89,8 @@ std::string SocketClient::recvMsg() {
         if (n <= 0) return "";
         total += n;
     }
-
-    unsigned int msgLen = 0;
-    if (!isHexHeader(lenBuf)) return "";
-    std::sscanf(lenBuf, "%08X", &msgLen);
-
+    lenBuf[8] = '\0';
+    unsigned int msgLen = atoi(lenBuf);
     if (msgLen == 0) return "";
     if (msgLen > MAX_MESSAGE_SIZE) return "";
 

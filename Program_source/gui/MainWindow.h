@@ -16,7 +16,7 @@
 #include "../services/SearchEngine.h"
 #include "../services/SortManager.h"
 #include "FileSystemModel.h"
-#include "../logger/TimestampedLogger.h"
+#include "TimestampedLogger.h"
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -71,8 +71,8 @@ private:
     IAuthService& m_auth;
 
     // ── Servicii ─────────────────────────────────────
+    TimestampedLogger m_logger;
     FileSystemModel*      m_model;
-    TimestampedLogger*    m_logger;
     SortManager::SortCrit m_currentSort;
     SearchEngine          m_searchEngine;
 

@@ -4,7 +4,7 @@
 #include <vector>
 #include <cstdio>
 #include <cstring>
-#include <cctype>
+#include <filesystem>
 #include <thread>
 #include <mutex>
 #include <winsock2.h>
@@ -19,6 +19,7 @@
 #include "filesystem/TextFile.h"
 #include "filesystem/BinaryFile.h"
 
+
 using namespace std;
 
 mutex g_mutex;
@@ -26,20 +27,21 @@ Database g_db;
 ConsoleLogger g_logger;
 AuthService* g_auth = nullptr;
 FileManager* g_fm   = nullptr;
+unsigned int MAX_MESSAGE_SIZE = 99999999;
 
-constexpr unsigned int MAX_MESSAGE_SIZE = 50u * 1024u * 1024u;
-
-static bool isHexHeader(const char* buffer) {
-    for (int i = 0; i < 8; ++i) {
-        if (!isxdigit(static_cast<unsigned char>(buffer[i])))
-            return false;
-    }
-    return true;
-}
 
 static bool sendMsg(SOCKET sock, const string& msg) {
     char lenBuf[9];
-    snprintf(lenBuf, sizeof(lenBuf), "%08X", (unsigned int)msg.size());
+    string msg_size = to_string(msg.size());
+    int cntr;
+    for(cntr = 0;cntr < (8-msg_size.size());cntr++){
+        lenBuf[cntr] = '0';
+    }
+    for(int i = 0;cntr < 8; cntr++){
+        lenBuf[cntr] = msg_size[i++];
+    }
+    lenBuf[8] = '\0';
+    //cout << "\n" << lenBuf << "\n";
     int headerSent = 0;
     while (headerSent < 8) {
         int sent = send(sock, lenBuf + headerSent, 8 - headerSent, 0);
@@ -47,7 +49,7 @@ static bool sendMsg(SOCKET sock, const string& msg) {
         headerSent += sent;
     }
 
-    size_t total = 0;
+    unsigned int total = 0;
     while (total < msg.size()) {
         int n = send(sock, msg.c_str() + total, (int)(msg.size() - total), 0);
         if (n <= 0) return false;
@@ -64,9 +66,8 @@ static string recvMsg(SOCKET sock) {
         if (n <= 0) return "";
         total += n;
     }
-    unsigned int msgLen = 0;
-    if (!isHexHeader(lenBuf)) return "";
-    sscanf(lenBuf, "%08X", &msgLen);
+    unsigned int msgLen = atoi(lenBuf);
+    //cout << "\n" << lenBuf <<" la recive\n";
     if (msgLen == 0) return "";
     if (msgLen > MAX_MESSAGE_SIZE) return "";
 
@@ -77,6 +78,7 @@ static string recvMsg(SOCKET sock) {
         if (n <= 0) return "";
         received += n;
     }
+    //cout << result;
     return result;
 }
 
@@ -181,7 +183,7 @@ void handleClient(SOCKET clientSocket) {
         string msg = recvMsg(clientSocket);
         if (msg.empty()) break;
 
-        cout << "Primit: " << msg.substr(0, 120) << "\n";
+        cout << "Primit: " << msg << "\n";
 
         auto parts = splitMsg(msg, '|');
         if (parts.empty()) { sendMsg(clientSocket, "ERR|empty command"); continue; }
@@ -461,14 +463,26 @@ int main() {
     WSAStartup(MAKEWORD(2, 2), &wsaData);
 
     vector<string> dbPaths = {
-        "../Program_source/data/filesystem_app.db"
+        "C:/Users/marius/Documents/GitHub/virtual-file-system/Program_source/data/filesystem_app.db",
+        "Program_source/data/filesystem_app.db",
+        "../Program_source/data/filesystem_app.db",
+        "../../Program_source/data/filesystem_app.db"
     };
     bool dbOpened = false;
-    for (int i = 0; i < (int)dbPaths.size(); i++) {
-        if (g_db.open(dbPaths[i])) { dbOpened = true; break; }
+    for (const auto& dbPath : dbPaths) {
+        if (!filesystem::exists(dbPath)) {
+            continue;
+        }
+
+        if (g_db.open(dbPath)) {
+            cout << "Baza de date deschisa din: " << filesystem::absolute(dbPath).string() << "\n";
+            dbOpened = true;
+            break;
+        }
     }
     if (!dbOpened) {
         cout << "Eroare: Baza de date nu s-a gasit in nicio locatie cunoscuta!\n";
+        cout << "Folder curent: " << filesystem::current_path().string() << "\n";
         return 1;
     }
 
@@ -500,7 +514,7 @@ int main() {
     bind(serverSocket, (sockaddr*)&addr, sizeof(addr));
     listen(serverSocket, 5);
 
-    cout << "Server ATMosFILE pornit pe portul " + to_string(port) + " ...\n";
+    cout << "Server ATMosFILE pornit pe portu " + to_string(port) + " ...\n";
 
     while (true) {
         SOCKET clientSocket = accept(serverSocket, nullptr, nullptr);

@@ -14,7 +14,10 @@ set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
 set(SQLITE_SOURCE "Program_source/external/sqlite3.c")
 
 # Surse comune (tot ce nu e server.cpp, client.cpp sau network/)
-file(GLOB_RECURSE ALL_SOURCES "Program_source/*.cpp")
+file(GLOB_RECURSE ALL_SOURCES CONFIGURE_DEPENDS
+    "Program_source/*.cpp"
+    "Program_source/*.h"
+)
 list(FILTER ALL_SOURCES EXCLUDE REGEX "server\\.cpp$")
 list(FILTER ALL_SOURCES EXCLUDE REGEX "client\\.cpp$")
 list(FILTER ALL_SOURCES EXCLUDE REGEX "network/")
@@ -106,6 +109,14 @@ if(WINDEPLOYQT)
 endif()
 
 add_custom_command(TARGET ATMosFILE POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_SOURCE_DIR}/Program_source/data"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${CMAKE_CURRENT_SOURCE_DIR}/Program_source/data"
+        "${CMAKE_BINARY_DIR}/data"
+    COMMENT "Copiind baza de date in folderul de executie..."
+)
+
+add_custom_command(TARGET ATMosFILE_Server POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_SOURCE_DIR}/Program_source/data"
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         "${CMAKE_CURRENT_SOURCE_DIR}/Program_source/data"

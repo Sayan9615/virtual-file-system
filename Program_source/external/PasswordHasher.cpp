@@ -1,6 +1,5 @@
 #include "PasswordHasher.h"
 #include <sodium.h>
-#include <stdexcept>
 
 bool PasswordHasher::initialize_sodium() {
     return sodium_init() >= 0;
