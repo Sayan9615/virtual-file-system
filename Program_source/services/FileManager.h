@@ -22,7 +22,7 @@ public:
                                 const std::string& content, int parentId = 1) override;
 
     bool createBinaryFile(const std::string& name, const std::string& ownerUser,
-                          const std::string& extension, int parentId = 1);
+                          const std::string& extension, int parentId = 1) override;
 
     virtual bool createFolder(const std::string& name, const std::string& ownerUser,
                               int parentId = 1) override;
@@ -32,7 +32,7 @@ public:
     std::vector<std::shared_ptr<FileSystemEntity>> getChildren(int parentId, const std::string& username = "") override;
 
     // Update
-    bool updateTextFile(int id, const std::string& content, const std::string& username);
+    bool updateTextFile(int id, const std::string& content, const std::string& username) override;
     virtual bool renameEntity(int id, const std::string& newName, const std::string& username) override;
 
     // Stergere
@@ -48,11 +48,11 @@ public:
     virtual bool shareEntity(int entityId, const std::string& username, bool canRead, bool canWrite) override;
     virtual bool revokeShare(int entityId, const std::string& username) override;
 
-    int getParentId(int entityId) const;
+    int getParentId(int entityId) const override;
 
     // Utilitare
     virtual int getRootId() override;
-    int getEntityId(const std::string& name, int parentId);
+    int getEntityId(const std::string& name, int parentId) override;
     virtual std::shared_ptr<Folder> buildTree(int folderId, Folder* parent = nullptr,
                                               const std::string& username = "") override;
 

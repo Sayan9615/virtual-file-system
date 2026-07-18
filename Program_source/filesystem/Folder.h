@@ -1,6 +1,6 @@
 #pragma once
 #include "FileSystemEntity.h"
-#include "../interfaces/iSearchable.h"
+#include "../interfaces/ISearchable.h"
 #include "BPlusTree.h"
 #include "../services/SortManager.h"
 #include <vector>

@@ -11,6 +11,7 @@
 #include <QCloseEvent>
 #include <QMenu>
 #include <QShortcut>
+#include <memory>
 #include "../interfaces/IFileManager.h"
 #include "../interfaces/IAuthService.h"
 #include "../services/SearchEngine.h"
@@ -71,7 +72,7 @@ private:
     IAuthService& m_auth;
 
     // ── Servicii ─────────────────────────────────────
-    TimestampedLogger m_logger;
+    std::unique_ptr<TimestampedLogger> m_logger;
     FileSystemModel*      m_model;
     SortManager::SortCrit m_currentSort;
     SearchEngine          m_searchEngine;

@@ -46,7 +46,7 @@ MainWindow::MainWindow(const std::string& username,
     m_statusLabel(nullptr), m_logConsole(nullptr),
     m_backButton(nullptr)
 {
-    m_logger = new TimestampedLogger("logs.txt");
+    m_logger = std::make_unique<TimestampedLogger>("logs.txt");
 
     setWindowTitle(QString("ATMosFS — %1%2")
                        .arg(QString::fromStdString(username))
@@ -149,7 +149,7 @@ void MainWindow::setupUI() {
     m_addressBar->setMinimumHeight(30);
 
     m_searchBar = new QLineEdit(this);
-    m_searchBar->setPlaceholderText("Cauta...");
+    m_searchBar->setPlaceholderText("Cauta dupa nume sau extensie...");
     m_searchBar->setMinimumHeight(30);
     m_searchBar->setMaximumWidth(250);
 
@@ -424,7 +424,7 @@ void MainWindow::onSearchTriggered() {
         return;
     }
 
-    auto results = m_searchEngine.search(tree.get(), query.toStdString(), true, true);
+    auto results = m_searchEngine.search(tree.get(), query.toStdString());
 
     if (results.empty()) {
         m_searchResults->addItem("Niciun rezultat pentru: " + query);
