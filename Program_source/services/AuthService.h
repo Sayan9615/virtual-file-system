@@ -16,12 +16,6 @@ public:
     bool isAdmin(const std::string& username) override;
     bool deleteUser(const std::string& username) override;
 
-    std::vector<std::string> getAllGroups() override;
-    std::vector<std::string> getUsersInGroup(const std::string& groupName) override;
-    bool createGroup(const std::string& groupName) override;
-    bool addUserToGroup(const std::string& groupName, const std::string& username) override;
-    bool removeUserFromGroup(const std::string& groupName, const std::string& username) override;
-
 private:
     Database& db;
     iLogger& logger;

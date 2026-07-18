@@ -18,14 +18,4 @@ public:
     // ── Admin ─────────────────────────────────────────
     virtual bool isAdmin(const std::string& username) = 0;
     virtual bool deleteUser(const std::string& username) = 0;
-
-    // ── Grupuri — pastrate pentru compatibilitate interna
-    virtual std::vector<std::string> getAllGroups() = 0;
-    virtual std::vector<std::string> getUsersInGroup(
-        const std::string& groupName) = 0;
-    virtual bool createGroup(const std::string& groupName) = 0;
-    virtual bool addUserToGroup(const std::string& groupName,
-                                const std::string& username) = 0;
-    virtual bool removeUserFromGroup(const std::string& groupName,
-                                     const std::string& username) = 0;
 };

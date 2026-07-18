@@ -232,41 +232,6 @@ void handleClient(SOCKET clientSocket) {
                     response = ok ? "OK" : "ERR|delete user failed";
                 }
             }
-            else if (cmd == "AUTH_CREATE_GROUP") {
-                if (parts.size() < 2) { response = "ERR|missing args"; }
-                else {
-                    bool ok = g_auth->createGroup(parts[1]);
-                    response = ok ? "OK" : "ERR|group creation failed";
-                }
-            }
-            else if (cmd == "AUTH_ADD_USER_TO_GROUP") {
-                if (parts.size() < 3) { response = "ERR|missing args"; }
-                else {
-                    bool ok = g_auth->addUserToGroup(parts[1], parts[2]);
-                    response = ok ? "OK" : "ERR|failed";
-                }
-            }
-            else if (cmd == "AUTH_REMOVE_USER_FROM_GROUP") {
-                if (parts.size() < 3) { response = "ERR|missing args"; }
-                else {
-                    bool ok = g_auth->removeUserFromGroup(parts[1], parts[2]);
-                    response = ok ? "OK" : "ERR|failed";
-                }
-            }
-            else if (cmd == "AUTH_GET_ALL_GROUPS") {
-                auto groups = g_auth->getAllGroups();
-                response = "OK";
-                for (auto& g : groups) response += "|" + g;
-            }
-            else if (cmd == "AUTH_GET_USERS_IN_GROUP") {
-                if (parts.size() < 2) { response = "ERR|missing args"; }
-                else {
-                    auto users = g_auth->getUsersInGroup(parts[1]);
-                    response = "OK";
-                    for (auto& u : users) response += "|" + u;
-                }
-            }
-
             // ── FileManager commands ───────────────────────────────
             else if (cmd == "FM_INIT") {
                 bool ok = g_fm->initializeDatabase();

@@ -8,7 +8,6 @@
 
             virtual void log(const std::string& event) =0;
 
-            //sterg toate logurile
             virtual void clear()=0;
             
             virtual void exportLogs(const std::string& path) const = 0;
