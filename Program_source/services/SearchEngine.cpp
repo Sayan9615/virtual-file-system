@@ -1,5 +1,4 @@
 #include "SearchEngine.h"
-
 #include <algorithm>
 #include <cctype>
 

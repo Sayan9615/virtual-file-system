@@ -6,7 +6,7 @@
 #pragma comment(lib, "ws2_32.lib")
 
 namespace {
-constexpr unsigned int MAX_MESSAGE_SIZE = 50u * 1024u * 1024u;
+constexpr unsigned int MAX_MESSAGE_SIZE = 99999999;
 
 bool isHexHeader(const char* buffer) {
     for (int i = 0; i < 8; ++i) {

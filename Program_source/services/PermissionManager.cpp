@@ -1,6 +1,5 @@
 #include "PermissionManager.h"
 #include <sstream>
-#include <algorithm>
 
 PermissionManager::PermissionManager() {
     permissions.push_back(std::make_shared<OthersPermission>(false, false));
@@ -13,13 +12,11 @@ void PermissionManager::addPermission(std::shared_ptr<Permission> permission) {
 }
 
 void PermissionManager::removePermission(const std::string& type) {
-    permissions.erase(
-        std::remove_if(permissions.begin(), permissions.end(),
-            [&type](const std::shared_ptr<Permission>& p) {
-                return p->getType() == type;
-            }),
-        permissions.end()
-    );
+    for (int i = static_cast<int>(permissions.size()) - 1; i >= 0; --i) {
+        if (permissions[i]->getType() == type) {
+            permissions.erase(permissions.begin() + i);
+        }
+    }
 }
 
 bool PermissionManager::canRead(const std::string& username) const {

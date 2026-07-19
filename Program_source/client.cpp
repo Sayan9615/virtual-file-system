@@ -34,9 +34,7 @@ int main(int argc, char* argv[]) {
         // folderul exista deja, ignoram
     }
 
-    std::cout << "Inainte de MainWindow\n";
     MainWindow window(username, fm, auth);
-    std::cout << "Dupa MainWindow\n";
     window.show();
 
     return app.exec();
